@@ -1,12 +1,14 @@
+
 // Transcriber.h
 #pragma once
 
+#include <JuceHeader.h>
+#include "BasicPitch.h"
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
-#include <vector>
-#include "BasicPitch.h"
+#include "AudioUtils.h"
 
 class Transcriber
 {
@@ -14,50 +16,48 @@ public:
     Transcriber();
     ~Transcriber();
 
-    /** set transcription buffer length in ms */
     void resetBuffers(int bufLenInMs);
+    /** store the sent audio. sampleRate should be == BASIC_PITCH_SAMPLE_RATE
+     * otherwise an assertion will cause a crash
+     */
+    void storeAudio(float* inAudio, int numSamples, double sampleRate);
 
-    /** send the transcriber some audio */
-    void storeAudio(float* inAudio, int numSamples);
+    bool isReadyToTranscribe() const { return status == readyToTranscribe; }
 
-    /** query whether we’ve filled our first buffer yet */
-    bool isReadyToTranscribe() const
-    {
-        return status == readyToTranscribe;
-    }
+    void setNoteSensitivity(float s)   { noteSensitivity   = s; }
+    void setSplitSensitivity(float s)  { splitSensitivity  = s; }
+    void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
 
-    /** adjust pitch-tracker parameters on the fly */
-    void setNoteSensitivity(float s)    { noteSensitivity = s; }
-    void setSplitSensitivity(float s)   { splitSensitivity = s; }
-    void setMinNoteDuration(float ms)   { minNoteDurationMs = ms; }
+    /** Called from your AudioProcessor::processBlock */
+    void collectMidi(juce::MidiBuffer& outputBuffer);
 
 private:
     enum TranscriberStatus { notEnoughAudio, readyToTranscribe, transcribing };
+    void        runModel(float* readBuffer);
+    void        threadLoop();
 
-    void runModel(float* readBuffer);
+    BasicPitch  mBasicPitch;
 
-    BasicPitch   mBasicPitch;
+    float*      bufferA            = nullptr;
+    float*      bufferB            = nullptr;
+    float*      currentWriteBuffer = nullptr;
+    float*      currentReadBuffer  = nullptr;
 
-    float*       bufferA      = nullptr;
-    float*       bufferB      = nullptr;
-    float*       currentWriteBuffer = nullptr;
-    float*       currentReadBuffer  = nullptr;
+    bool        noteHeld[127]      = { false };
 
-    TranscriberStatus status = notEnoughAudio;
+    TranscriberStatus status       = notEnoughAudio;
+    int      bufferLenSamples      = 0;
+    int      samplesWritten        = 0;
 
-    int          bufferLenSamples = 0;  
-    int          samplesWritten   = 0;  
+    float    noteSensitivity       = 0.7f;
+    float    splitSensitivity      = 0.5f;
+    float    minNoteDurationMs     = 125.0f;
 
-    // parameters for the pitch tracker
-    float        noteSensitivity    = 0.5f;
-    float        splitSensitivity   = 0.5f;
-    float        minNoteDurationMs  = 50.0f;
+    std::thread              workerThread;
+    std::mutex               statusMutex, midiMutex;
+    std::condition_variable  statusCV;
+    std::atomic<bool>        keepRunning { true };
 
-    // threading
-    std::thread             workerThread;
-    std::mutex              statusMutex;
-    std::condition_variable statusCV;
-    std::atomic<bool>       keepRunning { true };
-
-    void threadLoop();
+    // This is where we queue up messages from runModel()
+    juce::MidiBuffer         pendingMidi;
 };

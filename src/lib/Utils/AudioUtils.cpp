@@ -92,6 +92,40 @@ void resampleBuffer(const AudioBuffer<float>& inBuffer,
     }
 }
 
+//    void resampleBuffer(Resampler& resampler,
+//                         const AudioBuffer<float>& inBuffer,
+//                         AudioBuffer<float>& outBuffer,
+//                         double inSourceSampleRate,
+//                         double inTargetSampleRate)
+//     {
+//         if (inSourceSampleRate == inTargetSampleRate)
+//         {
+//             outBuffer.makeCopyOf(inBuffer);
+//             return;
+//         }
+
+//         // // (Re)prepare the resampler
+//         // resampler.prepareToPlay(inSourceSampleRate,
+//         //                         inBuffer.getNumSamples(),
+//         //                         inTargetSampleRate);
+
+//         // Allocate output for the expected number of samples
+//         int expectedOut = resampler.getNumOutSamplesOnNextProcessBlock(inBuffer.getNumSamples());
+//         outBuffer.setSize(inBuffer.getNumChannels(), expectedOut, false);
+
+//         // Process each channel
+//         for (int ch = 0; ch < inBuffer.getNumChannels(); ++ch)
+//         {
+//             resampler.reset();
+//             int got = resampler.processBlock(
+//                 inBuffer.getReadPointer(ch),
+//                 outBuffer.getWritePointer(ch),
+//                 inBuffer.getNumSamples());
+//             jassertquiet(got == expectedOut);
+//         }
+//     }
+// }
+
 bool _loadMP3File(const std::string& filename, juce::AudioBuffer<float>& outBuffer, double& outSampleRate)
 {
     mp3dec_t mp3d;

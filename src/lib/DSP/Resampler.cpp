@@ -39,7 +39,6 @@ void Resampler::reset()
     for (auto& lowpass_filter: mLowpassFilters)
         lowpass_filter.reset();
 }
-
 int Resampler::processBlock(const float* inBuffer, float* outBuffer, int inNumSamples)
 {
     jassert(mNumInputSamplesAvailable + inNumSamples <= mInternalBuffer.getNumSamples());
@@ -74,6 +73,7 @@ int Resampler::processBlock(const float* inBuffer, float* outBuffer, int inNumSa
 
     return num_out_samples_to_produce;
 }
+
 
 int Resampler::getNumOutSamplesOnNextProcessBlock(int inNumSamples) const
 {
