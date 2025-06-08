@@ -20,7 +20,7 @@ public:
     /** store the sent audio. sampleRate should be == BASIC_PITCH_SAMPLE_RATE
      * otherwise an assertion will cause a crash
      */
-    void storeAudio(float* inAudio, int numSamples, double sampleRate);
+    void storeAudio(const float* inAudio, int numSamples, double sampleRate);
 
     bool isReadyToTranscribe() const { return status == readyToTranscribe; }
 
