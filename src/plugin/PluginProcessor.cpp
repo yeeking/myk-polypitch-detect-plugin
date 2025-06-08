@@ -153,8 +153,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const int numInputChannels = buffer.getNumChannels();
     const int numInputSamples  = buffer.getNumSamples();
 
-    // --- 1) Prepare mono buffer ---
-    internalMonoBuffer.setSize(1, numInputSamples, false, false, true);
     // copy channel 0
     internalMonoBuffer.copyFrom(0, 0, buffer, 0, 0, numInputSamples);
     // add other channels
@@ -163,11 +161,11 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // average
     internalMonoBuffer.applyGain(1.0f / static_cast<float>(numInputChannels));
 
-    // --- 2) Resample to BASIC_PITCH_SAMPLE_RATE ---
-    // ensure downsample buffer is large enough
-    auto maxDownSamples = internalDownsampledBuffer.getNumSamples();
-    if (maxDownSamples < numInputSamples) 
-        internalDownsampledBuffer.setSize(1, numInputSamples, false, false, true);
+    // // --- 2) Resample to BASIC_PITCH_SAMPLE_RATE ---
+    // // ensure downsample buffer is large enough
+    // auto maxDownSamples = internalDownsampledBuffer.getNumSamples();
+    // if (maxDownSamples < numInputSamples) 
+    //     internalDownsampledBuffer.setSize(1, numInputSamples, false, false, true);
 
     const float* src = internalMonoBuffer.getReadPointer(0);
     float*       dst = internalDownsampledBuffer.getWritePointer(0);
@@ -177,12 +175,11 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // --- 3) Send into transcriber at the model's sample rate ---
     // we know this buffer is at BASIC_PITCH_SAMPLE_RATE now:
-    transcriber->storeAudio(dst, numDown, BASIC_PITCH_SAMPLE_RATE);
+    transcriber->storeAudio(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
 
     // --- 4) Pull out any MIDI the transcriber generated ---
-    // transcriber->collectMidi(midiMessages);
+    transcriber->collectMidi(midiMessages);
 
-    // …then do the rest of your audio/MIDI processing…
 }
 
 

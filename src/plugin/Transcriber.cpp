@@ -41,10 +41,10 @@ void Transcriber::resetBuffers(int bufLenInMs)
     }
 }
 
-void Transcriber::storeAudio(float* inAudio, int numSamples, double sampleRate)
+void Transcriber::storeAudio(const float* inAudio, int numSamples, double sampleRate)
 {
     assert(sampleRate == BASIC_PITCH_SAMPLE_RATE);
-    
+
     int remaining = numSamples, offset = 0;
     while (remaining > 0)
     {
