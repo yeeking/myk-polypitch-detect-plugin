@@ -53,6 +53,15 @@ void resampleBuffer(const AudioBuffer<float>& inBuffer,
                     double inSourceSampleRate,
                     double inTargetSampleRate);
 
+// /**
+//  * Hot-path version: re-uses a caller-owned Resampler.
+//  */
+// void resampleBuffer(Resampler& resampler,
+//                     const AudioBuffer<float>& inBuffer,
+//                     AudioBuffer<float>& outBuffer,
+//                     double inSourceSampleRate,
+//                     double inTargetSampleRate);
+
 /**
  * Load an mp3 file
  * @param filename path to mp3 file to read

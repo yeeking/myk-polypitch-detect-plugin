@@ -3,7 +3,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include "Transcriber.h"
-
+#include "AudioUtils.h"
+#include "Resampler.h"
+#include "BasicPitch.h"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -47,6 +49,13 @@ public:
 
 private:
     std::unique_ptr<Transcriber> transcriber;
+    // juce::AudioBuffer<float> resampledBuffer;
+    Resampler resampleProcessor; 
+
+    // in your AudioPluginAudioProcessor.h
+    juce::AudioBuffer<float> internalMonoBuffer;
+    juce::AudioBuffer<float> internalDownsampledBuffer;
+
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
