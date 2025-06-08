@@ -21,7 +21,6 @@ if test "$(uname -s)" = "Linux"; then
 	# To remove warnings about minimum macOS target versions
 	version=v1.14.1-neuralnote.0
 	test_enabled=OFF
-#        git submodule update --init --recursive --depth=1
         # onnx runtime - into the same folder for CODEX to be easily able to do it
         git clone https://github.com/polygon/libonnxruntime-neuralnote.git
         cd libonnxruntime-neuralnote
@@ -49,14 +48,14 @@ fi
 
 # If either the library or the ort model is missing or if an archive was found
 # then fetch ort model and library again.
-if test ! -f "Lib/ModelData/features_model.ort" -o ! -f "ThirdParty/onnxruntime/lib/$file" -o -f "$archive"; then
+if test ! -f "src/assets/ModelData/features_model.ort" -o ! -f "ThirdParty/onnxruntime/lib/$file" -o -f "$archive"; then
 	if ! test -f "$archive"; then
 		curl -fsSLO "https://github.com/tiborvass/libonnxruntime-neuralnote/releases/download/${version}/${archive}"
 	fi
 	rm -rf ThirdParty/$dir ThirdParty/onnxruntime
 	tar -C ThirdParty/ -xvf "$archive"
 	mv "ThirdParty/$dir" ThirdParty/onnxruntime
-	mv ThirdParty/onnxruntime/model.with_runtime_opt.ort Lib/ModelData/features_model.ort
+	mv ThirdParty/onnxruntime/model.with_runtime_opt.ort src/assets/ModelData/features_model.ort
 	rm "$archive"
 fi
 
