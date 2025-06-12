@@ -18,17 +18,17 @@ public:
 
     void resetBuffers(int bufLenInMs);
     /** store the sent audio. sampleRate should be == BASIC_PITCH_SAMPLE_RATE
-     * otherwise an assertion will cause a crash
+     * otherwise an assertion will cause a crash. Transcription is carried out automatically in a background thread
      */
     void storeAudio(const float* inAudio, int numSamples, double sampleRate);
-
+    /** returns true if the transcriber is ready */
     bool isReadyToTranscribe() const { return status == readyToTranscribe; }
 
     void setNoteSensitivity(float s)   { noteSensitivity   = s; }
     void setSplitSensitivity(float s)  { splitSensitivity  = s; }
     void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
 
-    /** Called from your AudioProcessor::processBlock */
+    /** transcription runs automatically in a background thread. This function can be called at any time to collect the most recenttly detected notes */
     void collectMidi(juce::MidiBuffer& outputBuffer);
 
 private:
