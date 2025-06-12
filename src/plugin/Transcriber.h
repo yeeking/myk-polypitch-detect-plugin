@@ -20,7 +20,7 @@ public:
     /** store the sent audio. sampleRate should be == BASIC_PITCH_SAMPLE_RATE
      * otherwise an assertion will cause a crash. Transcription is carried out automatically in a background thread
      */
-    void storeAudio(const float* inAudio, int numSamples, double sampleRate);
+    void queueAudioForTranscription(const float* inAudio, int numSamples, double sampleRate);
     /** returns true if the transcriber is ready */
     bool isReadyToTranscribe() const { return status == readyToTranscribe; }
 

@@ -9,7 +9,7 @@
 
 Transcriber::Transcriber()
 {
-    resetBuffers(1000);
+    resetBuffers(2000);
     workerThread = std::thread(&Transcriber::threadLoop, this);
 }
 
@@ -41,7 +41,7 @@ void Transcriber::resetBuffers(int bufLenInMs)
     }
 }
 
-void Transcriber::storeAudio(const float* inAudio, int numSamples, double sampleRate)
+void Transcriber::queueAudioForTranscription(const float* inAudio, int numSamples, double sampleRate)
 {
     assert(sampleRate == BASIC_PITCH_SAMPLE_RATE);
 
@@ -63,10 +63,11 @@ void Transcriber::storeAudio(const float* inAudio, int numSamples, double sample
         {
             {
                 std::lock_guard<std::mutex> sl(statusMutex);
-
+                std::cout << "transcriber switching buffers and requesting transcribe as I wrote " << samplesWritten << " samples " << std::endl;
                 if (status == notEnoughAudio)
                     status = readyToTranscribe;
-
+                if (status == transcribing)
+                    std::cout << "transcriber: model is too slow for us " << std::endl;
                 currentReadBuffer  = currentWriteBuffer;
                 currentWriteBuffer = (currentWriteBuffer == bufferA) ? bufferB : bufferA;
                 samplesWritten     = 0;
@@ -89,7 +90,7 @@ void Transcriber::threadLoop()
             status = transcribing;
             float* toProcess = currentReadBuffer;
             ul.unlock();
-
+            std::cout << "transcriber running model " << std::endl;
             runModel(toProcess);
 
             ul.lock();
@@ -144,7 +145,7 @@ void Transcriber::runModel(float* readBuffer)
         // or note started and ended in this buffer 
         if ((wasHeld && !isHeld) || (!wasHeld && !isHeld))
         {
-            std::cout << "Note off: " << note << " wasHeld "<< wasHeld << " isHeld " << isHeld << std::endl;
+            std::cout << "Note off: " << note << " at " << ev.startTime <<  " wasHeld "<< wasHeld << " isHeld " << isHeld << std::endl;
 
             // we’re now releasing
             localMidi.addEvent(
