@@ -5,6 +5,8 @@ import os
 import subprocess
 import mido
 from mido import Message, MidiFile, MidiTrack, bpm2tempo, second2tick
+from scipy.io import wavfile
+import numpy as np
 
 # Adjustable parameters
 FRAME_LENGTHS = [1.0, 2.0, 5.0]       # in seconds
@@ -52,28 +54,33 @@ def render_audio(midi_in_path, instrument_name, program_number, sound_font, samp
     audio_out = midi_in_path.replace('.mid', f'_{instrument_name}.wav')
 
     # Call fluidsynth
-    # subprocess.run([
-    #     'fluidsynth', 
-    #     # '-ni', 
-    #     sound_font,
-    #     temp_midi,
-    #     '-F', audio_out,
-    #     '-r', str(sample_rate)
-    # ], check=True)
     subprocess.run([
-        'fluidsynth',
+        'fluidsynth', 
+        # '-ni', 
         sound_font,
         temp_midi,
-        # '-ni',
         '-F', audio_out,
-        '-T', 'wav',
-        '-r', str(sample_rate),
-        # '-o', 'audio.file.channels=1',
-        '-o', 'synth.audio-channels=1',
-        '-o', 'synth.verbose=false'
-
+        '-r', str(sample_rate)
     ], check=True)
+
+
+    # Read the WAV file
+    wrote_sample_rate, audio_data = wavfile.read(audio_out)
+    audio_data = audio_data.astype(np.float32)
+    assert sample_rate == wrote_sample_rate, f"fluidsynth didn't write to the requested sample rate"
+    # If stereo, convert to mono by averaging channels
+    if audio_data.ndim == 2 and audio_data.shape[1] == 2:
+        audio_data = audio_data.mean(axis=1).astype(audio_data.dtype)
+    # Normalize to max abs value of 1.0
+    max_val = np.max(np.abs(audio_data))
+    if max_val > 0:
+        audio_data /= max_val
+    audio_int16 = (audio_data * 32767).astype(np.int16)
+    # write em out
+    wavfile.write(audio_out, sample_rate, audio_int16)
+
     print(f"Rendered audio: {audio_out}")
+
 
 
 def generate_midis(frame_lengths, total_length_factor,
