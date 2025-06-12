@@ -42,7 +42,7 @@ class NoteExtractTest : public juce::UnitTest
             beginTest("transcriber can store audio");
             float audio[10];
             for (int i=0;i<10;++i) {audio[i] = 0.1f;}
-            transcriber.storeAudio(audio, 10, 22050);
+            transcriber.queueAudioForTranscription(audio, 10, 22050);
             expect(true);
 
         }
@@ -108,7 +108,32 @@ class NoteExtractTest : public juce::UnitTest
 
 
         {
+            beginTest("Transcriber can detect a note");
+            Transcriber transcriber;
+            Resampler resampler;
+
+            std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_piano.wav");
+            // if this line crashes the test, you need to run the python test audio generator 
+            assert(std::filesystem::exists(filename) == true);// hard crash if the file does not exist 
             
+            std::vector<float> inputAudio = myk_tiny::loadWav(filename);
+            std::vector<float> outputAudio{};
+            // resize to half size of 44.1k input + 1 magic sample
+            outputAudio.resize((inputAudio.size() / 2) + 1);
+            // void Resampler::prepareToPlay(double inSourceSampleRate, int inMaxBlockSize, double inTargetSampleRate)
+            resampler.prepareToPlay(44100.0, inputAudio.size(), 22050.0);
+
+            const float* inBlock = &inputAudio[0];
+            float* resampledBlock = &outputAudio[0];
+            int numProcSamples = resampler.processBlock(inBlock, resampledBlock, static_cast<int>(inputAudio.size()));
+            std::cout << "processed " << numProcSamples << " of " << inputAudio.size() << std::endl;
+            // void Transcriber::storeAudio(const float* inAudio, int numSamples, double sampleRate)
+
+            transcriber.queueAudioForTranscription(resampledBlock, outputAudio.size(), 22050);
+            transcriber.queueAudioForTranscription(resampledBlock, outputAudio.size(), 22050);
+            
+            // while(transcriber.is)
+
         }
     }
 };
