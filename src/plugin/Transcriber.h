@@ -15,8 +15,11 @@ class Transcriber
 public:
     Transcriber();
     ~Transcriber();
-
-    void resetBuffers(int bufLenInMs);
+    /** reset the buffers to the sent number of ms at the BASIC_PITCH_SAMPLE_RATE  */
+    void resetBuffers(double bufLenInSecs);
+    /** reset the buffers to a specific number of samples  */
+    void resetBuffersSamples(int bufLenInSamples);
+    
     /** store the sent audio. sampleRate should be == BASIC_PITCH_SAMPLE_RATE
      * otherwise an assertion will cause a crash. Transcription is carried out automatically in a background thread
      */
@@ -27,7 +30,8 @@ public:
     void setNoteSensitivity(float s)   { noteSensitivity   = s; }
     void setSplitSensitivity(float s)  { splitSensitivity  = s; }
     void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
-
+    /** call this to ask if the transcriber has any MIDI to give you, since transcriptions happen in the background */
+    bool hasMidi();
     /** transcription runs automatically in a background thread. This function can be called at any time to collect the most recenttly detected notes */
     void collectMidi(juce::MidiBuffer& outputBuffer);
 
@@ -47,6 +51,7 @@ private:
 
     TranscriberStatus status       = notEnoughAudio;
     int      bufferLenSamples      = 0;
+    double   bufferLenSecs          = 0;
     int      samplesWritten        = 0;
 
     float    noteSensitivity       = 0.7f;

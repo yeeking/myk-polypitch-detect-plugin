@@ -9,7 +9,7 @@
 
 Transcriber::Transcriber()
 {
-    resetBuffers(2000);
+    resetBuffers(2);
     workerThread = std::thread(&Transcriber::threadLoop, this);
 }
 
@@ -22,10 +22,33 @@ Transcriber::~Transcriber()
     delete[] bufferB;
 }
 
-void Transcriber::resetBuffers(int bufLenInMs)
+void Transcriber::resetBuffers(double bufLenInSecs)
 {
-    int newLen = (BASIC_PITCH_SAMPLE_RATE * bufLenInMs) / 1000;
+    int newLen = (BASIC_PITCH_SAMPLE_RATE * bufLenInSecs);
     bufferLenSamples = std::max(newLen, 1);
+    bufferLenSecs = bufLenInSecs;
+
+    delete[] bufferA; delete[] bufferB;
+    bufferA = new float[bufferLenSamples];
+    bufferB = new float[bufferLenSamples];
+
+    currentWriteBuffer = bufferA;
+    currentReadBuffer  = nullptr;
+    samplesWritten     = 0;
+
+
+    {
+        std::lock_guard<std::mutex> sl(statusMutex);
+        status = notEnoughAudio;
+    }
+}
+
+
+void Transcriber::resetBuffersSamples(int _bufLenInSamples)
+{
+    bufferLenSamples = _bufLenInSamples;
+    bufferLenSecs = (bufferLenSamples / BASIC_PITCH_SAMPLE_RATE);
+    std::cout << "Set buf len secs to " << bufferLenSecs << std::endl;
 
     delete[] bufferA; delete[] bufferB;
     bufferA = new float[bufferLenSamples];
@@ -45,6 +68,13 @@ void Transcriber::queueAudioForTranscription(const float* inAudio, int numSample
 {
     assert(sampleRate == BASIC_PITCH_SAMPLE_RATE);
 
+    if (numSamples > this->bufferLenSamples){
+        this->resetBuffersSamples(numSamples);    
+        std::cout << "You sent me " << numSamples << " but my buffer is " << this->bufferLenSamples <<" samples. You are supposed to send smaller blocks from a realtime audio thread. " << std::endl;
+    }
+    assert(numSamples <= this->bufferLenSamples);// refuse to accept very long audio chunks
+    bool oneJobRequested = false;
+
     int remaining = numSamples, offset = 0;
     while (remaining > 0)
     {
@@ -58,16 +88,23 @@ void Transcriber::queueAudioForTranscription(const float* inAudio, int numSample
         samplesWritten  += chunk;
         offset          += chunk;
         remaining       -= chunk;
+        std::cout << "Trnascriber queued " << samplesWritten << " of buff " << bufferLenSamples << std::endl;
 
-        if (samplesWritten >= bufferLenSamples)
+        if (samplesWritten >= bufferLenSamples) // time to send the buffer to the model then switch to the other buffer 
         {
             {
                 std::lock_guard<std::mutex> sl(statusMutex);
-                std::cout << "transcriber switching buffers and requesting transcribe as I wrote " << samplesWritten << " samples " << std::endl;
-                if (status == notEnoughAudio)
+                if (status == transcribing){
+                    std::cout << "Transcriber: warning: I am about to switch buffers and request model process but transcription is not done yet. SO I'm ignoring the rest of the audio you sent " << std::endl;
+                    // break; // no point doing any more 
+                }        
+                if (status == notEnoughAudio){
+                    std::cout << "transcriber triggering a transcribe " << std::endl;
                     status = readyToTranscribe;
-                if (status == transcribing)
-                    std::cout << "transcriber: model is too slow for us " << std::endl;
+                    
+                    oneJobRequested = true;
+                }
+
                 currentReadBuffer  = currentWriteBuffer;
                 currentWriteBuffer = (currentWriteBuffer == bufferA) ? bufferB : bufferA;
                 samplesWritten     = 0;
@@ -112,7 +149,7 @@ void Transcriber::runModel(float* readBuffer)
 
     // 
     // AudioUtils::resampleBuffer
-
+    std::cout << "transcriber sending " << bufferLenSamples << " to the NN " << std::endl; 
     mBasicPitch.transcribeToMIDI(readBuffer, bufferLenSamples);
 
     // gather the events
@@ -122,10 +159,12 @@ void Transcriber::runModel(float* readBuffer)
     juce::MidiBuffer localMidi;
     for (auto& ev : events)
     {
+        std::cout << "Raw note: " <<ev.pitch << "[" << ev.startTime << " -> " << ev.endTime << "]" << std::endl;
+
         int note    = static_cast<int>(ev.pitch);
-        float amp   = ev.amplitude;          // in [0,1]
-        bool wasHeld = noteHeld[note];
-        bool isHeld  = (ev.endTime > 0.98f);
+        float amp   = ev.amplitude; 
+        bool wasHeld = noteHeld[ev.pitch];
+        bool isHeld  = (ev.endTime > 0.98 * bufferLenSecs);
 
         int startSample = static_cast<int>(ev.startTime * bufferLenSamples);
         int endSample   = static_cast<int>(ev.endTime   * bufferLenSamples);
@@ -135,22 +174,24 @@ void Transcriber::runModel(float* readBuffer)
         // NOTE ON - new note detected
         if (!wasHeld)
         {
-            std::cout << "New note on "<< note << " start " << ev.startTime << std::endl;
+            std::cout << "New note on "<< note << " start " << ev.startTime << "f: "<< startSample << "ef: " << endSample << std::endl;
             localMidi.addEvent(
                 juce::MidiMessage::noteOn(1, note, velocity),
                 startSample);
+            // std::cout << "After note on add, local midi has "  << localMidi.getNumEvents() << std::endl;
         }
 
         // NOTE OFF - held note was released in this buffer
         // or note started and ended in this buffer 
         if ((wasHeld && !isHeld) || (!wasHeld && !isHeld))
         {
-            std::cout << "Note off: " << note << " at " << ev.startTime <<  " wasHeld "<< wasHeld << " isHeld " << isHeld << std::endl;
+            std::cout << "Note off: " << note << " at " << ev.endTime <<  " wasHeld "<< wasHeld << " isHeld " << isHeld << std::endl;
 
             // we’re now releasing
             localMidi.addEvent(
                 juce::MidiMessage::noteOff(1, note),
                 endSample);
+            // std::cout << "After note off add, local midi has "  << localMidi.getNumEvents() << std::endl;
         }
 
         // if it’s still held at buffer-end, keep the hold flag
@@ -160,13 +201,29 @@ void Transcriber::runModel(float* readBuffer)
     // stash them under lock
     {
         std::lock_guard<std::mutex> ml(midiMutex);
-        pendingMidi.addEvents(localMidi, 0, bufferLenSamples, 0);
+        
+        pendingMidi.addEvents(localMidi, localMidi.getFirstEventTime(), localMidi.getLastEventTime(), 0);
+        // std::cout << "receive MIDI from model: Pending midi has " << pendingMidi.getNumEvents() << " local has " << localMidi.getNumEvents() << std::endl;
+
     }
 }
+
+bool Transcriber::hasMidi()
+{
+    std::lock_guard<std::mutex> ml(midiMutex);
+    if (pendingMidi.getNumEvents() > 0){
+        return true; 
+    }
+    else{
+        return false; 
+    }
+}
+
 
 void Transcriber::collectMidi(juce::MidiBuffer& outputBuffer)
 {
     std::lock_guard<std::mutex> ml(midiMutex);
+    // std::cout << "collect MIDI Pending midi has " << pendingMidi.getNumEvents() << std::endl;
     outputBuffer.swapWith(pendingMidi);
     pendingMidi.clear();  // ready for next round
 }
