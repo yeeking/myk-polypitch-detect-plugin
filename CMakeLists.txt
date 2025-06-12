@@ -13,7 +13,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 #Minimum MacOS target, set globally
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11" CACHE STRING "Minimum OS X deployment version" FORCE)
+# set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11" CACHE STRING "Minimum OS X deployment version" FORCE)
+# 10.15 for my filesystem.exists function
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version" FORCE)
 
 option(UniversalBinary "Build universal binary for mac" OFF)
 option(RTNeural_Release "When CMAKE_BUILD_TYPE=Debug, overwrite it to Release for RTNeural only" OFF)
@@ -211,6 +213,11 @@ target_compile_definitions(polypitch-tests
 target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/onnxruntime/include)
 target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ONNXRuntime/${ONNXRUNTIME_DIRNAME}/include)
 target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/minimp3)
+target_include_directories(polypitch-tests
+    PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}  # This is where JuceHeader.h is generated
+)
+
 foreach (dir ${lib_dirs})
     IF (IS_DIRECTORY ${dir})
         target_include_directories(polypitch-tests PRIVATE ${dir})

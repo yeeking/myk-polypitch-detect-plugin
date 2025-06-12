@@ -5,8 +5,9 @@
 
 
 #include "../plugin/Transcriber.h"
-// #include "tinywav/myk_tiny.h"
-
+#include "../lib/DSP/Resampler.h"
+#include "tinywav/myk_tiny.h"
+#include <filesystem>
 
 class BasicTest : public juce::UnitTest
 {
@@ -42,7 +43,62 @@ class NoteExtractTest : public juce::UnitTest
             float audio[10];
             for (int i=0;i<10;++i) {audio[i] = 0.1f;}
             transcriber.storeAudio(audio, 10, 22050);
+            expect(true);
+
         }
+        {
+            beginTest("resampler can process audio");
+
+            Resampler resampler;
+
+            resampler.prepareToPlay(44100.0, 44100, 22050.0);
+            float inBuffer[44100];
+            for (int i=0;i<44100;++i) {inBuffer[i] = 0.1f;}
+            float outBuffer[22050];
+            
+            resampler.processBlock(inBuffer, outBuffer, 44100);
+            expect(true);
+
+        }
+        {
+            beginTest("resampler can resample a WAV");
+
+            Resampler resampler;
+
+            int blockSize = 44100;
+
+            resampler.prepareToPlay(44100.0, blockSize, 22050.0);
+            std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_piano.wav");
+            
+            // expect(std::filesystem::exists(filename) == true);
+
+            std::vector<float> inputAudio = myk_tiny::loadWav(filename);
+
+            size_t totalSamples = inputAudio.size();
+            std::vector<float> outputAudio;
+            outputAudio.resize(totalSamples); // make sure output is the same size
+
+            for (size_t i = 0; i < totalSamples; i += blockSize) {
+                int currentBlockSize = static_cast<int>(std::min(blockSize, static_cast<int>(totalSamples - i)));
+
+                const float* inBlock = &inputAudio[i];
+                float* outBlock = &outputAudio[i];
+
+                int written = resampler.processBlock(inBlock, outBlock, currentBlockSize);
+            }
+            // // void myk_tiny::saveWav( std::vector<float>& buffer, const int channels, const int sampleRate, const std::string& filename){
+            std::string outfile("test_22050.wav");
+            myk_tiny::saveWav(outputAudio, 1, 22050, outfile);
+            size_t startSamples = inputAudio.size();
+            // expected no. resampled samples is original no. scaled by sample rate ration
+            double outSamples = static_cast<double>(startSamples) * (22050.0 / 44100.0);
+
+            std::vector<float> resampAudio = myk_tiny::loadWav(outfile);
+            std::cout << "orig len "<< inputAudio.size() << "resampled len " << resampAudio.size() << std::endl;         
+
+            expect(static_cast<double>(resampAudio.size()) == outSamples);
+        }
+
     }
 };
 

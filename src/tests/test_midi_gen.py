@@ -52,13 +52,26 @@ def render_audio(midi_in_path, instrument_name, program_number, sound_font, samp
     audio_out = midi_in_path.replace('.mid', f'_{instrument_name}.wav')
 
     # Call fluidsynth
+    # subprocess.run([
+    #     'fluidsynth', 
+    #     # '-ni', 
+    #     sound_font,
+    #     temp_midi,
+    #     '-F', audio_out,
+    #     '-r', str(sample_rate)
+    # ], check=True)
     subprocess.run([
-        'fluidsynth', 
-        # '-ni', 
+        'fluidsynth',
         sound_font,
         temp_midi,
+        # '-ni',
         '-F', audio_out,
-        '-r', str(sample_rate)
+        '-T', 'wav',
+        '-r', str(sample_rate),
+        # '-o', 'audio.file.channels=1',
+        '-o', 'synth.audio-channels=1',
+        '-o', 'synth.verbose=false'
+
     ], check=True)
     print(f"Rendered audio: {audio_out}")
 
