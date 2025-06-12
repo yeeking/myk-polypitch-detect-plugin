@@ -62,7 +62,6 @@ juce_add_plugin("${BaseTargetName}"
 juce_generate_juce_header(${BaseTargetName})
 
 # Source files
-#file(GLOB_RECURSE SOURCES_PLUGIN ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp ${CMAKE_CURRENT_LIST_DIR}/Lib/*.cpp)
 
 file(GLOB_RECURSE SOURCES_PLUGIN ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp) # not lib as now its a sub dir
 
@@ -178,3 +177,60 @@ if (WIN32)
     target_include_directories(${BaseTargetName} PRIVATE ThirdParty/ASIO/common)
 endif ()
 
+
+
+######## Test app
+
+juce_add_console_app(polypitch-tests)
+
+juce_generate_juce_header(polypitch-tests)
+
+file(GLOB_RECURSE SOURCES_TEST ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp) 
+# file(GLOB_RECURSE SOURCES_TEST ${CMAKE_CURRENT_LIST_DIR}/src/*.c) 
+
+list(REMOVE_ITEM SOURCES_TEST ${CMAKE_CURRENT_LIST_DIR}/src/lib/Model/BasicPitchCNN.cpp)
+list(REMOVE_ITEM SOURCES_TEST ${CMAKE_CURRENT_LIST_DIR}/src/plugin/PluginProcessor.cpp)
+list(REMOVE_ITEM SOURCES_TEST ${CMAKE_CURRENT_LIST_DIR}/src/plugin/PluginEditor.cpp)
+
+message(STATUS "SOURCES_TEST contains: ${SOURCES_TEST}")
+
+target_sources(polypitch-tests PRIVATE ${SOURCES_TEST} ${HEADERS_PLUGIN})
+
+
+target_compile_definitions(polypitch-tests
+    PRIVATE
+        JUCE_ALSA=1
+        JUCE_DIRECTSOUND=1
+        JUCE_USE_OGGVORBIS=1
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_UNIT_TESTS=1  # Good to enable JUCE's built-in unit-testing support
+)
+
+
+target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/onnxruntime/include)
+target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ONNXRuntime/${ONNXRUNTIME_DIRNAME}/include)
+target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/minimp3)
+foreach (dir ${lib_dirs})
+    IF (IS_DIRECTORY ${dir})
+        target_include_directories(polypitch-tests PRIVATE ${dir})
+    ELSE ()
+        CONTINUE()
+    ENDIF ()
+endforeach ()
+
+target_link_libraries(polypitch-tests
+    PRIVATE
+        juce::juce_audio_utils
+        # juce::juce_core
+        # juce::juce_events
+        # juce::juce_audio_basics
+       juce::juce_dsp
+        # llama  # if needed
+        BasicPitchCNN
+        onnxruntime
+        bin_data
+        juce::juce_recommended_config_flags
+        # juce::juce_recommended_lto_flags
+        # juce::juce_recommended_warning_flags
+)

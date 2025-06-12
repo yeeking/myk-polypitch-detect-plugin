@@ -29,7 +29,8 @@ I am claiming minimal credit for the hard stuff in this project: see https://git
 
 ## TODO
 
-* apply downsampling to buffer prior to note extraction as per neuralnote
+* [done] apply downsampling to buffer prior to note extraction as per neuralnote
 * possibly apply post processing on notes as per neuralnote
+* write some proper tests to eveluate frame-> frame overlaps etc. 
 
 

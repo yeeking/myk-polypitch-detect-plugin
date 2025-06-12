@@ -1,3 +1,6 @@
+/**
+ * Written mostly by a human with hands  on a keyboard - now that's refreshing
+ */
 #include <JuceHeader.h>
 
 
@@ -30,12 +33,15 @@ class NoteExtractTest : public juce::UnitTest
     {
         {
             Transcriber transcriber;
-
-            // transcriber.storeAudio();
-
-            beginTest("transcribe");
+            beginTest("transcriber can be instantiated");
             expectNotEquals(6, 9);
-
+        }
+        {
+            Transcriber transcriber;
+            beginTest("transcriber can store audio");
+            float audio[10];
+            for (int i=0;i<10;++i) {audio[i] = 0.1f;}
+            transcriber.storeAudio(audio, 10, 22050);
         }
     }
 };
