@@ -65,26 +65,30 @@ class NoteExtractTest : public juce::UnitTest
 
             Resampler resampler;
 
-            int blockSize = 44100;
+            int blockSize = 1024;
 
             resampler.prepareToPlay(44100.0, blockSize, 22050.0);
-            std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_piano.wav");
+            // std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_piano.wav");
+            std::string filename("../../../white_noise.wav");
             
-            // expect(std::filesystem::exists(filename) == true);
-
+            assert(std::filesystem::exists(filename) == true);
+            std::cout << "Reading the wav file " << filename << std::endl;
             std::vector<float> inputAudio = myk_tiny::loadWav(filename);
 
             size_t totalSamples = inputAudio.size();
             std::vector<float> outputAudio;
             outputAudio.resize(totalSamples); // make sure output is the same size
-
+            size_t outPos = 0; 
             for (size_t i = 0; i < totalSamples; i += blockSize) {
                 int currentBlockSize = static_cast<int>(std::min(blockSize, static_cast<int>(totalSamples - i)));
 
                 const float* inBlock = &inputAudio[i];
-                float* outBlock = &outputAudio[i];
+                float* outBlock = &outputAudio[outPos];
 
                 int written = resampler.processBlock(inBlock, outBlock, currentBlockSize);
+                std::cout << i << "sent " << blockSize << " got " << written << std::endl;
+                outPos += written; 
+                
             }
             // // void myk_tiny::saveWav( std::vector<float>& buffer, const int channels, const int sampleRate, const std::string& filename){
             std::string outfile("test_22050.wav");
