@@ -17,7 +17,9 @@ public:
     void prepareToPlay(double inSourceSampleRate, int inMaxBlockSize, double inTargetSampleRate);
 
     void reset();
-
+    /** resamples the sent audio and writes to outBuffer.  i think the number of samples it processes is limited by
+     * both inNumSamples and the inMaxBlockSize set previously in prepareToPlay.
+    */
     int processBlock(const float* inBuffer, float* outBuffer, int inNumSamples);
 
     int getNumOutSamplesOnNextProcessBlock(int inNumSamples) const;
