@@ -199,38 +199,88 @@ class NoteExtractTest : public juce::UnitTest
         // }
 
 
-        {
-            beginTest("Transcriber: note ends in second buffer: start 0.8ish end 1.7 ish 1 second buffer ");
+        // {
+        //     beginTest("Transcriber: note ends in second buffer: start 0.8ish end 1.7 ish 1 second buffer ");
+        //     Transcriber transcriber;
+        //     Resampler resampler;
+
+        //     // set this low for sax!
+        //     transcriber.setSplitSensitivity(0.1);
+        //     std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_sax.wav");
+        //     // if this line crashes the test, you need to run the python test audio generator 
+        //     assert(std::filesystem::exists(filename) == true);// hard crash if the file does not exist 
+            
+        //     std::vector<float> inputAudioVec = myk_tiny::loadWav(filename);
+        //     std::vector<float> resampledAudioVec{};
+        //     std::vector<float> silence{};
+        //     silence.resize(22050 * 10); // 10 seconds of silence to make sure we get all the notes out of the audio
+        //     // resize to half size of 44.1k input + 1 magic sample
+        //     resampledAudioVec.resize((inputAudioVec.size() / 2) + 1);
+        //     // void Resampler::prepareToPlay(double inSourceSampleRate, int inMaxBlockSize, double inTargetSampleRate)
+        //     resampler.prepareToPlay(44100.0, inputAudioVec.size(), 22050.0);
+
+        //     const float* inBlock = &inputAudioVec[0];
+        //     float* resampledAudioPtr = &resampledAudioVec[0];
+        //     int numProcSamples = resampler.processBlock(inBlock, resampledAudioPtr, static_cast<int>(inputAudioVec.size()));
+        //     std::cout << "resampler resampled down to " << numProcSamples << " from  " << inputAudioVec.size() << std::endl;
+            
+        //     transcriber.resetBuffers(1);// set buffers to n seconds 
+        //     // send first block 
+        //     transcriber.queueAudioForTranscription(resampledAudioPtr, 22050, 22050);
+        //     // simulate waiting for 1 second before sending next block
+        //     // std::cout << "waiting for a second now " << std::endl;
+        //     // std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // sleep for a second simulating block based processing
+        //     // actually - just wait till the transcription finishes
+        //     // as that in 'release' build should be less than a second 
+        //     while(!transcriber.hasMidi()){
+        //         std::cout << "waiting..." << std::endl;
+        //         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep for 100 ms
+        //     }
+        //     juce::MidiBuffer midiBuff;
+        //     transcriber.collectMidi(midiBuff);
+        //     expect(midiBuff.getNumEvents() == 1); 
+        //     // also expect the event to be a note on
+        //     midiBuff.clear();
+            
+        //     transcriber.queueAudioForTranscription(resampledAudioPtr+22050, 22050, 22050);
+        //     // question is - what should the transcribe do if it 
+        //     // wants to start another transcribe but one is already running?   
+        //     while(!transcriber.hasMidi()){
+        //         std::cout << "waiting for second note on " << std::endl;
+        //         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep for 100 ms
+        //     }
+        //     // ok get that lovely note off
+        //     transcriber.collectMidi(midiBuff);
+        //     expect(midiBuff.getNumEvents() == 1); 
+        //     // also should be a note off    
+        // }
+  {
+            beginTest("Transcriber: two notes one framer ");
             Transcriber transcriber;
             Resampler resampler;
 
             // set this low for sax!
             transcriber.setSplitSensitivity(0.1);
-            std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_sax.wav");
+            std::string filename("../../../test_data/test.wav");
+            // std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_sax.wav");
+
             // if this line crashes the test, you need to run the python test audio generator 
             assert(std::filesystem::exists(filename) == true);// hard crash if the file does not exist 
             
+            std::cout << "Rreading audio from " << filename << std::endl;
             std::vector<float> inputAudioVec = myk_tiny::loadWav(filename);
             std::vector<float> resampledAudioVec{};
-            std::vector<float> silence{};
-            silence.resize(22050 * 10); // 10 seconds of silence to make sure we get all the notes out of the audio
-            // resize to half size of 44.1k input + 1 magic sample
+             // resize to half size of 44.1k input + 1 magic sample
+            std::cout << "Read " << inputAudioVec.size() << "samples " << std::endl;
             resampledAudioVec.resize((inputAudioVec.size() / 2) + 1);
-            // void Resampler::prepareToPlay(double inSourceSampleRate, int inMaxBlockSize, double inTargetSampleRate)
             resampler.prepareToPlay(44100.0, inputAudioVec.size(), 22050.0);
 
             const float* inBlock = &inputAudioVec[0];
             float* resampledAudioPtr = &resampledAudioVec[0];
             int numProcSamples = resampler.processBlock(inBlock, resampledAudioPtr, static_cast<int>(inputAudioVec.size()));
-            std::cout << "resampler resampled down to " << numProcSamples << " from  " << inputAudioVec.size() << std::endl;
             
-            transcriber.resetBuffers(1);// set buffers to n seconds 
             // send first block 
-            transcriber.queueAudioForTranscription(resampledAudioPtr, 22050, 22050);
-            // simulate waiting for 1 second before sending next block
-            // std::cout << "waiting for a second now " << std::endl;
-            // std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // sleep for a second simulating block based processing
-            // actually - just wait till the transcription finishes
+            transcriber.queueAudioForTranscription(resampledAudioPtr, numProcSamples, 22050);
             // as that in 'release' build should be less than a second 
             while(!transcriber.hasMidi()){
                 std::cout << "waiting..." << std::endl;
@@ -238,23 +288,9 @@ class NoteExtractTest : public juce::UnitTest
             }
             juce::MidiBuffer midiBuff;
             transcriber.collectMidi(midiBuff);
-            expect(midiBuff.getNumEvents() == 1); 
-            // also expect the event to be a note on
-            midiBuff.clear();
-            
-            transcriber.queueAudioForTranscription(resampledAudioPtr+22050, 22050, 22050);
-            // question is - what should the transcribe do if it 
-            // wants to start another transcribe but one is already running?   
-            while(!transcriber.hasMidi()){
-                std::cout << "waiting for second note on " << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep for 100 ms
-            }
-            // ok get that lovely note off
-            transcriber.collectMidi(midiBuff);
-            expect(midiBuff.getNumEvents() == 1); 
-            // also should be a note off    
-        }
+            expect(midiBuff.getNumEvents() == 4); 
 
+        }
     }
 };
 
