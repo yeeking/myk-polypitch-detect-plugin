@@ -3,8 +3,12 @@
 #include <iostream> 
 
 std::vector<float> myk_tiny::loadWav(const std::string& filename){
+    std::cout << "tiny wav loadWav " << std::endl;
+
     TinyWav twReader;
     tinywav_open_read(&twReader, filename.c_str(), TW_INLINE); 
+    std::cout << "tiny wav reader ready " << std::endl;
+
     size_t bufferSize = twReader.numChannels * twReader.numFramesInHeader;   
     // dynamically allocate buffer on the heap 
     float* mainBuffer = new float[bufferSize]; 
@@ -12,6 +16,7 @@ std::vector<float> myk_tiny::loadWav(const std::string& filename){
     float* subBuffer = new float[subSize];
     
     for (auto offset = 0; offset < bufferSize; offset += subSize){
+        std::cout << "tiny wav offset " << offset << std::endl;
         size_t samplesRead = tinywav_read_f(&twReader, subBuffer, subSize);
         // copy samples read to the main buffer
         // std::cout << "Samples read " << samplesRead << " of " <<bufferSize << std::endl; 

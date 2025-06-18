@@ -79,6 +79,7 @@ int tinywav_open_read(TinyWav *tw, const char *path, TinyWavChannelFormat chanFm
   // skip over any other chunks before the "data" chunk
   bool additionalHeaderDataPresent = false;
   while (tw->h.Subchunk2ID != htonl(0x64617461)) {   // "data"
+    // printf("tinywav cpp looking for data...");
     fseek(tw->f, 4, SEEK_CUR);
     fread(&tw->h.Subchunk2ID, 4, 1, tw->f);
     additionalHeaderDataPresent = true;

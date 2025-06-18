@@ -202,6 +202,8 @@ void Transcriber::runModel(float* readBuffer)
                 juce::MidiMessage::noteOff(1, note),
                 endSample);
             // std::cout << "After note off add, local midi has "  << localMidi.getNumEvents() << std::endl;
+            // now stop holding it, ready for next note on 
+            noteHeld[ev.pitch] = false; 
         }
 
         // if it’s still held at buffer-end, keep the hold flag
