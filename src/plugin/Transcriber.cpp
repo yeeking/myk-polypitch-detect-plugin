@@ -36,6 +36,13 @@ void Transcriber::resetBuffers(double bufLenInSecs)
     currentReadBuffer  = nullptr;
     samplesWritten     = 0;
 
+    // reset noteHeld and pending midi
+    {
+        for (int i=0;i<128;++i) noteHeld[i] = false; 
+        std::lock_guard<std::mutex> sl(midiMutex);
+        pendingMidi.clear();
+
+    }
 
     {
         std::lock_guard<std::mutex> sl(statusMutex);
@@ -226,4 +233,10 @@ void Transcriber::collectMidi(juce::MidiBuffer& outputBuffer)
     // std::cout << "collect MIDI Pending midi has " << pendingMidi.getNumEvents() << std::endl;
     outputBuffer.swapWith(pendingMidi);
     pendingMidi.clear();  // ready for next round
+}
+
+TranscriberStatus Transcriber::getStatus()
+{
+    std::lock_guard<std::mutex> ml(statusMutex);
+    return this->status;
 }
