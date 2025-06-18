@@ -172,6 +172,9 @@ void Transcriber::runModel(float* readBuffer)
         float amp   = ev.amplitude; 
         bool wasHeld = noteHeld[ev.pitch];
         bool isHeld  = (ev.endTime > 0.98 * bufferLenSecs);
+        if (isHeld){
+            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over 98% of buf length " << (0.98 * bufferLenSecs) << std::endl;  
+        }
 
         int startSample = static_cast<int>(ev.startTime * bufferLenSamples);
         int endSample   = static_cast<int>(ev.endTime   * bufferLenSamples);
