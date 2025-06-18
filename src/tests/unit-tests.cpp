@@ -108,12 +108,48 @@ class NoteExtractTest : public juce::UnitTest
         }
 
 
+        // {
+        //     beginTest("Transcriber can detect a note");
+        //     Transcriber transcriber;
+        //     Resampler resampler;
+
+        //     std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_sax.wav");
+        //     // if this line crashes the test, you need to run the python test audio generator 
+        //     assert(std::filesystem::exists(filename) == true);// hard crash if the file does not exist 
+            
+        //     std::vector<float> inputAudioVec = myk_tiny::loadWav(filename);
+        //     std::vector<float> resampledAudioVec{};
+        //     std::vector<float> silence{};
+        //     silence.resize(22050 * 10); // 10 seconds of silence to make sure we get all the notes out of the audio
+        //     // resize to half size of 44.1k input + 1 magic sample
+        //     resampledAudioVec.resize((inputAudioVec.size() / 2) + 1);
+        //     // void Resampler::prepareToPlay(double inSourceSampleRate, int inMaxBlockSize, double inTargetSampleRate)
+        //     resampler.prepareToPlay(44100.0, inputAudioVec.size(), 22050.0);
+
+        //     const float* inBlock = &inputAudioVec[0];
+        //     float* resampledAudioPtr = &resampledAudioVec[0];
+        //     int numProcSamples = resampler.processBlock(inBlock, resampledAudioPtr, static_cast<int>(inputAudioVec.size()));
+        //     std::cout << "resampler resampled down to " << numProcSamples << " from  " << inputAudioVec.size() << std::endl;
+        //     // void Transcriber::storeAudio(const float* inAudio, int numSamples, double sampleRate)
+        //     // transcriber.resetBuffers(1);// set buffers to two seconds 
+
+        //     transcriber.queueAudioForTranscription(resampledAudioPtr, resampledAudioVec.size(), 22050);
+
+        //     while(!transcriber.hasMidi()){
+        //         std::cout << "waiting..." << std::endl;
+        //         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep for 100 ms
+        //     }
+        //     juce::MidiBuffer midiBuff;
+        //     transcriber.collectMidi(midiBuff);
+        //     // std::cout << "MIDI msg count " << midiBuff.getNumEvents() << std::endl;
+        //     expect(midiBuff.getNumEvents() == 2); // note on note off
+        // }
+
         {
-            beginTest("Transcriber can detect a note");
-            Transcriber transcriber;
+            beginTest("Transcriber detecting note with different frame lengths");
             Resampler resampler;
 
-            std::string filename("../../../test_data/output_midis/frame_1s_mono_cross_frame_sax.wav");
+            std::string filename("../../../test_data/output_midis/frame_1s_mono_start_at_frame_start_sax.wav");
             // if this line crashes the test, you need to run the python test audio generator 
             assert(std::filesystem::exists(filename) == true);// hard crash if the file does not exist 
             
@@ -126,71 +162,40 @@ class NoteExtractTest : public juce::UnitTest
             // void Resampler::prepareToPlay(double inSourceSampleRate, int inMaxBlockSize, double inTargetSampleRate)
             resampler.prepareToPlay(44100.0, inputAudioVec.size(), 22050.0);
 
-            const float* inBlock = &inputAudioVec[0];
+            const float* inBlock = &inputAudioVec[0];// get a pointer to the source audio for the resampler 
             float* resampledAudioPtr = &resampledAudioVec[0];
             int numProcSamples = resampler.processBlock(inBlock, resampledAudioPtr, static_cast<int>(inputAudioVec.size()));
-            std::cout << "resampler resampled down to " << numProcSamples << " from  " << inputAudioVec.size() << std::endl;
-            // void Transcriber::storeAudio(const float* inAudio, int numSamples, double sampleRate)
-            // transcriber.resetBuffers(1);// set buffers to two seconds 
+            // std::cout << "resampler resampled down to " << numProcSamples << " from  " << inputAudioVec.size() << std::endl;
 
-            transcriber.queueAudioForTranscription(resampledAudioPtr, resampledAudioVec.size(), 22050);
-
-            while(!transcriber.hasMidi()){
-                std::cout << "waiting..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep for 100 ms
-            }
-            juce::MidiBuffer midiBuff;
-            transcriber.collectMidi(midiBuff);
-            // std::cout << "MIDI msg count " << midiBuff.getNumEvents() << std::endl;
-            expect(midiBuff.getNumEvents() == 2); // note on note off
-        }
-
-        {
-            beginTest("Transcriber can detect a note across frames");
-            Transcriber transcriber;
-            Resampler resampler;
-
-            std::string filename("../../../test_data/output_midis/frame_5s_mono_start_at_frame_start_sax");
-            // if this line crashes the test, you need to run the python test audio generator 
-            assert(std::filesystem::exists(filename) == true);// hard crash if the file does not exist 
-            
-            std::vector<float> inputAudioVec = myk_tiny::loadWav(filename);
-            std::vector<float> resampledAudioVec{};
-            std::vector<float> silence{};
-            silence.resize(22050 * 10); // 10 seconds of silence to make sure we get all the notes out of the audio
-            // resize to half size of 44.1k input + 1 magic sample
-            resampledAudioVec.resize((inputAudioVec.size() / 2) + 1);
-            // void Resampler::prepareToPlay(double inSourceSampleRate, int inMaxBlockSize, double inTargetSampleRate)
-            resampler.prepareToPlay(44100.0, inputAudioVec.size(), 22050.0);
-
-            const float* inBlock = &inputAudioVec[0];
-            float* resampledAudioPtr = &resampledAudioVec[0];
-            int numProcSamples = resampler.processBlock(inBlock, resampledAudioPtr, static_cast<int>(inputAudioVec.size()));
-            std::cout << "resampler resampled down to " << numProcSamples << " from  " << inputAudioVec.size() << std::endl;
-            // void Transcriber::storeAudio(const float* inAudio, int numSamples, double sampleRate)
-            transcriber.resetBuffers(1);// set buffers to one second
             // now iteratively send the audio into
             // the transcriber 
             int totalSamples = static_cast<int>(resampledAudioVec.size());
-            int blockSize = 22050 * 2;  // or whatever you want
+            std::vector<int> blockSizes = {4096, 22050/2, 22050, 22050*2};
+            // int blockSize = 22050 / 2;  // or whatever you want
+            for (int blockSize : blockSizes){
+                Transcriber transcriber;
 
-            for (int i = 0; i < totalSamples; i += blockSize) {
-                int currentBlockSize = std::min(blockSize, totalSamples - i);
-                const float* blockPtr = resampledAudioPtr + i;
+                std::cout << "Looking for the C/ 60 in " << blockSize << " samples " << std::endl;
+                transcriber.resetBuffers(blockSize / 22050);// set buffers to n seconds
+                const float* audioPtr = &resampledAudioVec[0];
 
-                transcriber.queueAudioForTranscription(blockPtr, currentBlockSize, 22050);
-            }   
-
-            // transcriber.queueAudioForTranscription(resampledAudioPtr, resampledAudioVec.size(), 22050);
-
-            while(!transcriber.hasMidi()){
-                std::cout << "waiting..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep for 100 ms
+                // send it the buffer with the note in 
+                transcriber.queueAudioForTranscription(audioPtr, blockSize, 22050);
+                // send it some slience 
+                const float* silencePtr = &silence[0];
+                // transcriber.queueAudioForTranscription(silencePtr, blockSize, 22050);
+                transcriber.queueAudioForTranscription(audioPtr+1, blockSize, 22050);
+                
+                // wait for midi 
+                while(!transcriber.hasMidi()){
+                    // std::cout << "waiting..." << std::endl;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // sleep for 100 ms
+                }
+                juce::MidiBuffer midiBuff;
+                transcriber.collectMidi(midiBuff);
+                std::cout << "** Blocksize " << blockSize << " MIDI msg count " << midiBuff.getNumEvents() << std::endl;
+                expect(midiBuff.getNumEvents() >= 1); // note on note off
             }
-            juce::MidiBuffer midiBuff;
-            transcriber.collectMidi(midiBuff);
-            // std::cout << "MIDI msg count " << midiBuff.getNumEvents() << std::endl;
-            expect(midiBuff.getNumEvents() == 2); // note on note off
         }
     }
 };

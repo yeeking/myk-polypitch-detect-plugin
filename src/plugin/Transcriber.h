@@ -10,6 +10,9 @@
 #include <atomic>
 #include "AudioUtils.h"
 
+enum TranscriberStatus { notEnoughAudio, readyToTranscribe, transcribing };
+
+
 class Transcriber
 {
 public:
@@ -34,9 +37,8 @@ public:
     bool hasMidi();
     /** transcription runs automatically in a background thread. This function can be called at any time to collect the most recenttly detected notes */
     void collectMidi(juce::MidiBuffer& outputBuffer);
-
+    TranscriberStatus getStatus();
 private:
-    enum TranscriberStatus { notEnoughAudio, readyToTranscribe, transcribing };
     void        runModel(float* readBuffer);
     void        threadLoop();
 
