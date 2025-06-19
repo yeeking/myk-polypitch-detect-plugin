@@ -62,6 +62,7 @@ private:
     std::atomic<float>* noteSensitivityParameter = nullptr;
     std::atomic<float>* splitSensitivityParameter = nullptr;
     std::atomic<float>* minNoteDurationParameter = nullptr;
+    std::atomic<float>* noteHoldSensitivityParameter = nullptr;
     // std::atomic<float>* gainParameter = nullptr;
 
 
