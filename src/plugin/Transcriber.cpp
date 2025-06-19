@@ -163,14 +163,14 @@ void Transcriber::runModel(float* readBuffer)
     juce::MidiBuffer localMidi;
     for (auto& ev : events)
     {
-        std::cout << "Raw note: " <<ev.pitch << "[" << ev.startTime << " -> " << ev.endTime << "]" << std::endl;
+        std::cout << "Raw note: [" <<ev.pitch << " | " << ev.amplitude << " [" << ev.startTime << " -> " << ev.endTime << "]" << std::endl;
 
         int note    = static_cast<int>(ev.pitch);
         float amp   = ev.amplitude; 
         bool wasHeld = noteHeld[ev.pitch];
         bool isHeld  = (ev.endTime > noteHoldSensitivity * bufferLenSecs);
         if (isHeld){
-            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over 98% of buf length " << (noteHoldSensitivity * bufferLenSecs) << std::endl;  
+            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over " << noteSensitivity<< "  of buf length " << (noteHoldSensitivity * bufferLenSecs) << std::endl;  
         }
 
         int startSample = static_cast<int>(ev.startTime * bufferLenSamples);
