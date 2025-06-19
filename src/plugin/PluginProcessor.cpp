@@ -45,7 +45,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
           })
 {
     transcriber = std::make_unique<Transcriber>();
-    transcriber->resetBuffersSamples(4096);
+    transcriber->resetBuffersSamples(8192);
 
     trackingParameter = parameters.getRawParameterValue ("TrackingToggle");
     minNoteDurationParameter = parameters.getRawParameterValue ("minNoteDurationMs");
