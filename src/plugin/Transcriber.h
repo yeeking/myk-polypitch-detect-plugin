@@ -10,7 +10,7 @@
 #include <atomic>
 #include "AudioUtils.h"
 
-enum TranscriberStatus { notEnoughAudio, readyToTranscribe, transcribing };
+enum TranscriberStatus { collectingAudio, collectingAudioAndTranscribing };
 
 
 class Transcriber
@@ -27,9 +27,7 @@ public:
      * otherwise an assertion will cause a crash. Transcription is carried out automatically in a background thread
      */
     void queueAudioForTranscription(const float* inAudio, int numSamples, double sampleRate);
-    /** returns true if the transcriber is ready */
-    bool isReadyToTranscribe() const { return status == readyToTranscribe; }
-
+ 
     void setNoteSensitivity(float s)   { noteSensitivity   = s; }
     void setSplitSensitivity(float s)  { splitSensitivity  = s; }
     void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
@@ -51,7 +49,7 @@ private:
 
     bool        noteHeld[127]      = { false };
 
-    TranscriberStatus status       = notEnoughAudio;
+    TranscriberStatus status       = collectingAudio;
     int      bufferLenSamples      = 0;
     double   bufferLenSecs          = 0;
     int      samplesWritten        = 0;
