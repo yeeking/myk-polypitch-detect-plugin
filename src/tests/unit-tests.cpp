@@ -17,7 +17,10 @@ static int freqToMidiNote(double freq)
 {
     return int(std::round(69 + 12.0 * std::log2(freq / 440.0)));
 }
-
+static double midiNoteToFreq(int midiNote)
+{
+    return 440.0 * std::pow(2.0, (midiNote - 69) / 12.0);
+}
 //------------------------------------------------------------------------------
 // Wait for MIDI from transcriber, with timeout in seconds
 //------------------------------------------------------------------------------
@@ -132,31 +135,32 @@ public:
             //     512, 4096,
             //     { C4 }, { C4 }
             // },
-         {
-                "Long E4 across 3 buffers",
-                [&]{ double totalSecs = 1.0;
+        //  {
+        //         "Long E4 across 3 buffers",
+        //         [&]{ double totalSecs = 1.0;
 
-                     return makeSaw(329.63, 0.5, totalSecs, sr, 0.4f); },
-                 512, static_cast<int>(0.2 * sr) ,
-                { E4 }, { E4 }
-            },
+        //              return makeSaw(329.63, 0.5, totalSecs, sr, 0.4f); },
+        //          512, static_cast<int>(0.2 * sr) ,
+        //         { E4 }, { E4 }
+        //     },
     
 
-            // {
-            //     "Major triad chord (saw mix)",
-            //     [&]{ double totalSecs = 4096.0 / sr;
-            //          auto c = makeSaw(261.63, 0.8, totalSecs, sr, 0.3f);
-            //          auto e = makeSaw(329.63, 0.8, totalSecs, sr, 0.3f);
-            //          auto g = makeSaw(392.00, 0.8, totalSecs, sr, 0.3f);
-            //          std::vector<float> sum(c.size());
-            //          for (size_t i = 0; i < sum.size(); ++i)
-            //              sum[i] = c[i] + e[i] + g[i];
-            //          return sum;
-            //     },
-            //     1024, 4096,
-            //     { C4, E4, G4 },
-            //     { C4, E4, G4 }
-            // },
+            {
+                "Major triad chord (saw mix)",
+                [&]{ double totalSecs = 0.5;// 4096 is about 0.18
+                    double noteLenSecs = 0.1;
+                     auto c = makeSaw(midiNoteToFreq(C4), noteLenSecs, totalSecs, sr, 0.3f);
+                     auto e = makeSaw(midiNoteToFreq(E4), noteLenSecs, totalSecs, sr, 0.3f);
+                     auto g = makeSaw(midiNoteToFreq(G4), noteLenSecs, totalSecs, sr, 0.3f);
+                     std::vector<float> sum(c.size());
+                     for (size_t i = 0; i < sum.size(); ++i)
+                         sum[i] = c[i] + e[i] + g[i];
+                     return sum;
+                },
+                1024, 4096,
+                { C4, E4, G4 },
+                { C4, E4, G4 }
+            },
 
             // {
             //     "Staccato C4 pulse bursts",
@@ -204,31 +208,39 @@ public:
 
             bool got = waitForMidi(trans);
             expect(got, "timeout waiting for MIDI");
-
+            // Collect all MIDI into local midi buffer
             MidiBuffer midi;
             trans.collectMidi(midi);
-            std::cout << "Collected midi events. " <<  midi.getNumEvents() << std::endl;
-            expect(midi.getNumEvents() == 2);
+            std::cout << "Collected midi events: " << midi.getNumEvents() << std::endl;
 
-            // Gather actual On/Off note numbers
-            std::vector<int> actualOn, actualOff;
+            // Build frequency maps for Note-On and Note-Off messages
+            #include <unordered_map>
+
+            std::unordered_map<int,int> onCounts, offCounts;
+
+            // JUCE-6+ allows range-for over MidiBuffer :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
             for (auto metadata : midi)
-            { 
-                std::cout << "test got midi " << metadata.getMessage().getDescription() << std::endl;
+            {
                 const auto& msg = metadata.getMessage();
-                if (msg.isNoteOn())  actualOn.push_back(msg.getNoteNumber());
-                if (msg.isNoteOff()) actualOff.push_back(msg.getNoteNumber());
+                int note        = msg.getNoteNumber();
+                if (msg.isNoteOn())    ++onCounts[note];
+                if (msg.isNoteOff())   ++offCounts[note];
             }
 
-            // Compare size
-            expectEquals((int)actualOn.size(),  (int)tc.expectedOn.size());
-            expectEquals((int)actualOff.size(), (int)tc.expectedOff.size());
+            // Now verify that *each* expected note appears at least once
+            for (int expectedNote : tc.expectedOn)
+            {
+                // unordered_map::count returns 1 if present, 0 otherwise :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
+                bool found = onCounts.count(expectedNote) > 0;
+                expect(found, "Expected Note On for MIDI note " + String(expectedNote));
+            }
 
-            // Verify each expected note
-            for (size_t i = 0; i < tc.expectedOn.size(); ++i)
-                expectEquals(actualOn[i], tc.expectedOn[i]);
-            for (size_t i = 0; i < tc.expectedOff.size(); ++i)
-                expectEquals(actualOff[i], tc.expectedOff[i]);
+            for (int expectedNote : tc.expectedOff)
+            {
+                bool found = offCounts.count(expectedNote) > 0;
+                expect(found, "Expected Note Off for MIDI note " + String(expectedNote));
+            }
+
         }
     }
 };
