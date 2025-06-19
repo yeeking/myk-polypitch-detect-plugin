@@ -85,19 +85,6 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
     juce::ignoreUnused (index, newName);
 }
 
-//==============================================================================
-// void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
-// {
-//     // Use this method as the place to do any pre-playback
-//     // initialisation that you need..
-//     juce::ignoreUnused (sampleRate, samplesPerBlock);
-
-
-//     resampleProcessor.prepareToPlay(sampleRate, samplesPerBlock, BASIC_PITCH_SAMPLE_RATE);
-
-//     int maxOut = resampleProcessor.getNumOutSamplesOnNextProcessBlock(samplesPerBlock);
-//     internalDownsampledBuffer.setSize(1, maxOut);
-// }
 
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
@@ -114,6 +101,8 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     // 2) downsampled buffer: one channel, enough to hold the max output
     int maxDown = resampleProcessor.getNumOutSamplesOnNextProcessBlock(samplesPerBlock);
     internalDownsampledBuffer.setSize(1, maxDown, false, true, false);
+
+    std::cout << "prepare to play sr: "<< getSampleRate() << " mono buff len " << internalMonoBuffer.getNumSamples() << " downsamp buff len: " << internalDownsampledBuffer.getNumSamples() << std::endl;
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -161,15 +150,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // average
     internalMonoBuffer.applyGain(1.0f / static_cast<float>(numInputChannels));
 
-    // // --- 2) Resample to BASIC_PITCH_SAMPLE_RATE ---
-    // // ensure downsample buffer is large enough
-    // auto maxDownSamples = internalDownsampledBuffer.getNumSamples();
-    // if (maxDownSamples < numInputSamples) 
-    //     internalDownsampledBuffer.setSize(1, numInputSamples, false, false, true);
-
     const float* src = internalMonoBuffer.getReadPointer(0);
     float*       dst = internalDownsampledBuffer.getWritePointer(0);
-
+    // the resample step 
     int numDown = resampleProcessor.processBlock(src, dst, numInputSamples);
     jassert(numDown <= internalDownsampledBuffer.getNumSamples());
 

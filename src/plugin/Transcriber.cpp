@@ -26,28 +26,7 @@ void Transcriber::resetBuffers(double bufLenInSecs)
 {
     int newLen = (BASIC_PITCH_SAMPLE_RATE * bufLenInSecs);
     bufferLenSamples = std::max(newLen, 1);
-    bufferLenSecs = bufLenInSecs;
-
-    delete[] bufferA; delete[] bufferB;
-    bufferA = new float[bufferLenSamples];
-    bufferB = new float[bufferLenSamples];
-
-    currentWriteBuffer = bufferA;
-    currentReadBuffer  = nullptr;
-    samplesWritten     = 0;
-
-    // reset noteHeld and pending midi
-    {
-        for (int i=0;i<128;++i) noteHeld[i] = false; 
-        std::lock_guard<std::mutex> sl(midiMutex);
-        pendingMidi.clear();
-
-    }
-
-    {
-        std::lock_guard<std::mutex> sl(statusMutex);
-        status = notEnoughAudio;
-    }
+    resetBuffersSamples(bufferLenSamples);
 }
 
 
@@ -67,7 +46,7 @@ void Transcriber::resetBuffersSamples(int _bufLenInSamples)
 
     {
         std::lock_guard<std::mutex> sl(statusMutex);
-        status = notEnoughAudio;
+        status = collectingAudio;
     }
 }
 
@@ -101,13 +80,13 @@ void Transcriber::queueAudioForTranscription(const float* inAudio, int numSample
         {
             {
                 std::lock_guard<std::mutex> sl(statusMutex);
-                if (status == transcribing){
+                if (status == collectingAudioAndTranscribing){
                     std::cout << "Transcriber: warning: I am about to switch buffers and request model process but transcription is not done yet. SO I'm ignoring the rest of the audio you sent " << std::endl;
                     // break; // no point doing any more 
                 }        
-                if (status == notEnoughAudio){
+                if (status == collectingAudio){
                     std::cout << "transcriber triggering a transcribe " << std::endl;
-                    status = readyToTranscribe;
+                    status = collectingAudioAndTranscribing;
                     
                     oneJobRequested = true;
                 }
@@ -129,16 +108,16 @@ void Transcriber::threadLoop()
         statusCV.wait_for(ul, std::chrono::milliseconds(10));
         if (!keepRunning) break;
 
-        if (status == readyToTranscribe && currentReadBuffer != nullptr)
+        if (status == collectingAudioAndTranscribing && currentReadBuffer != nullptr)
         {
-            status = transcribing;
+            // status = transcribing;
             float* toProcess = currentReadBuffer;
             ul.unlock();
             std::cout << "transcriber running model " << std::endl;
             runModel(toProcess);
 
             ul.lock();
-            status = notEnoughAudio;// transcription done, waiting for more audio
+            status = collectingAudio;// transcription done, waiting for more audio
         }
     }
 }
