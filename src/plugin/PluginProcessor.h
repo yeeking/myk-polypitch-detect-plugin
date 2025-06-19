@@ -56,6 +56,14 @@ private:
     juce::AudioBuffer<float> internalMonoBuffer;
     juce::AudioBuffer<float> internalDownsampledBuffer;
 
+    
+    juce::AudioProcessorValueTreeState parameters;
+    std::atomic<float>* trackingParameter = nullptr;
+    std::atomic<float>* noteSensitivityParameter = nullptr;
+    std::atomic<float>* splitSensitivityParameter = nullptr;
+    std::atomic<float>* minNoteDurationParameter = nullptr;
+    // std::atomic<float>* gainParameter = nullptr;
+
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

@@ -11,10 +11,43 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        )
+    , parameters (*this, nullptr, juce::Identifier ("APVTSTutorial"),
+          {
+    // void setNoteSensitivity(float s)   { noteSensitivity   = s; }
+    // void setSplitSensitivity(float s)  { splitSensitivity  = s; }
+    // void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
+    // float    noteSensitivity       = 0.7f;
+    // float    splitSensitivity      = 0.5f;
+    // float    minNoteDurationMs     = 125.0f;
+            std::make_unique<juce::AudioParameterFloat> ("noteSensitivity", // parameterID
+                "noteSensitivity", // parameter name
+                0.0f, // minimum value
+                1.0f, // maximum value
+                0.7f), // default value
+            std::make_unique<juce::AudioParameterFloat> ("splitSensitivity", // parameterID
+                "splitSensitivity", // parameter name
+                0.0f, // minimum value
+                1.0f, // maximum value
+                0.5f), // default value
+            std::make_unique<juce::AudioParameterFloat> ("minNoteDurationMs", // parameterID
+                "minNoteDurationMs", // parameter name
+                0.0f, // minimum value
+                250.0f, // maximum value
+                125.0f), // default value
+
+              std::make_unique<juce::AudioParameterBool> ("TrackingToggle", // parameterID
+                  "Enable Tracking", // parameter name
+                  false) // default value
+          })
 {
     transcriber = std::make_unique<Transcriber>();
     transcriber->resetBuffersSamples(4096);
 
+    trackingParameter = parameters.getRawParameterValue ("TrackingToggle");
+    minNoteDurationParameter = parameters.getRawParameterValue ("minNoteDurationMs");
+    noteSensitivityParameter = parameters.getRawParameterValue ("noteSensitivity");
+    splitSensitivityParameter = parameters.getRawParameterValue ("splitSensitivity");
+    
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -143,6 +176,16 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const int numInputChannels = buffer.getNumChannels();
     const int numInputSamples  = buffer.getNumSamples();
 
+    float noteSensitivity = *parameters.getRawParameterValue("noteSensitivity");
+    float splitSensitivity = *parameters.getRawParameterValue("splitSensitivity");
+    float minNoteDuration = *parameters.getRawParameterValue("minNoteDurationMs");
+    bool tracking = *parameters.getRawParameterValue("TrackingToggle");
+
+    transcriber->setNoteSensitivity(noteSensitivity);
+    transcriber->setSplitSensitivity(splitSensitivity);
+    transcriber->setMinNoteDuration(minNoteDuration);
+    
+
     // copy channel 0
     internalMonoBuffer.copyFrom(0, 0, buffer, 0, 0, numInputSamples);
     // add other channels
@@ -196,7 +239,7 @@ bool AudioPluginAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor()
 {
-    return new AudioPluginAudioProcessorEditor (*this);
+    return new AudioPluginAudioProcessorEditor (*this, parameters);
 }
 
 //==============================================================================
@@ -205,14 +248,24 @@ void AudioPluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
-    juce::ignoreUnused (destData);
+    // juce::ignoreUnused (destData);
+    auto state = parameters.copyState();
+    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    copyXmlToBinary (*xml, destData);
 }
 
 void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
-    juce::ignoreUnused (data, sizeInBytes);
+    // juce::ignoreUnused (data, sizeInBytes);
+
+    std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
+    if (xmlState.get() != nullptr)
+        if (xmlState->hasTagName (parameters.state.getType()))
+            parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+
+
 }
 
 //==============================================================================
