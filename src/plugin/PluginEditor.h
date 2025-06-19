@@ -41,5 +41,9 @@ private:
     juce::Slider minNoteDurationSlider;
     std::unique_ptr<SliderAttachment> minNoteDurationAttachment;
 
+    juce::Label noteHoldSensitivityLabel;
+    juce::Slider noteHoldSensitivitySlider;
+    std::unique_ptr<SliderAttachment> noteHoldSensitivityAttachment;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

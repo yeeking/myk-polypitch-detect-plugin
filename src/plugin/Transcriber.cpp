@@ -64,7 +64,8 @@ void Transcriber::queueAudioForTranscription(const float* inAudio, int numSample
     {
         std::lock_guard<std::mutex> sl(statusMutex);
         if (status == bothBuffersFullPleaseWait){
-            std::cout << "Transcriber.cpp: warning - waiting for transcription " << std::endl;
+            // std::cout << "Transcriber.cpp: warning - waiting for transcription " << std::endl;
+            return; // trashy eh?
         }
     }
     
@@ -155,7 +156,10 @@ void Transcriber::runModel(float* readBuffer)
     // gather the events
     const auto& events = mBasicPitch.getNoteEvents();
 
-    // now emit JUCE MIDI messages
+    // reset the noteSeen array
+    for (int i=0;i<128;++i){
+        noteSeen[i] = true;
+    }
     juce::MidiBuffer localMidi;
     for (auto& ev : events)
     {
@@ -164,9 +168,9 @@ void Transcriber::runModel(float* readBuffer)
         int note    = static_cast<int>(ev.pitch);
         float amp   = ev.amplitude; 
         bool wasHeld = noteHeld[ev.pitch];
-        bool isHeld  = (ev.endTime > 0.98 * bufferLenSecs);
+        bool isHeld  = (ev.endTime > noteHoldSensitivity * bufferLenSecs);
         if (isHeld){
-            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over 98% of buf length " << (0.98 * bufferLenSecs) << std::endl;  
+            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over 98% of buf length " << (noteHoldSensitivity * bufferLenSecs) << std::endl;  
         }
 
         int startSample = static_cast<int>(ev.startTime * bufferLenSamples);
@@ -182,6 +186,9 @@ void Transcriber::runModel(float* readBuffer)
                 juce::MidiMessage::noteOn(1, note, velocity),
                 startSample);
             // std::cout << "After note on add, local midi has "  << localMidi.getNumEvents() << std::endl;
+            // now check if the end 
+            // 
+            noteSeen[note] = true;
         }
 
         // NOTE OFF - held note was released in this buffer
@@ -197,10 +204,21 @@ void Transcriber::runModel(float* readBuffer)
             // std::cout << "After note off add, local midi has "  << localMidi.getNumEvents() << std::endl;
             // now stop holding it, ready for next note on 
             noteHeld[ev.pitch] = false; 
+            noteSeen[note] = true;
         }
 
         // if it’s still held at buffer-end, keep the hold flag
         noteHeld[note] = isHeld;
+    }
+    for (int i=0;i<128;++i){
+        if (noteHeld[i] && !noteSeen[i]){
+            // held note not seen - end it 
+            localMidi.addEvent(
+                juce::MidiMessage::noteOff(1, i),
+                0
+            );
+            noteHeld[i] = false; 
+        }
     }
 
     // stash them under lock

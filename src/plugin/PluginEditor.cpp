@@ -12,25 +12,28 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     // juce::ignoreUnused (processor);
 
     noteSensitivityLabel.setText ("Note Sensitivity", juce::dontSendNotification);
-    // noteSensitivityLabel.attachToComponent (&noteSensitivitySlider, true);
     noteSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);  
     addAndMakeVisible (noteSensitivityLabel);
     addAndMakeVisible (noteSensitivitySlider);
     noteSensitivityAttachment.reset (new SliderAttachment (valueTreeState, "noteSensitivity", noteSensitivitySlider));
 
     splitSensitivityLabel.setText ("Split Sensitivity", juce::dontSendNotification);
-    // splitSensitivityLabel.attachToComponent (&splitSensitivitySlider, true);        
     splitSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);
     addAndMakeVisible (splitSensitivityLabel);
     addAndMakeVisible (splitSensitivitySlider);
     splitSensitivityAttachment.reset (new SliderAttachment (valueTreeState, "splitSensitivity", splitSensitivitySlider));
 
     minNoteDurationLabel.setText ("Min Note Duration (ms)", juce::dontSendNotification);
-    // minNoteDurationLabel.attachToComponent (&minNoteDurationSlider, true);
     minNoteDurationSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     addAndMakeVisible (minNoteDurationLabel);
     addAndMakeVisible (minNoteDurationSlider);
     minNoteDurationAttachment.reset (new SliderAttachment (valueTreeState, "minNoteDurationMs", minNoteDurationSlider));
+
+    noteHoldSensitivityLabel.setText ("Note Hold Sensitivity", juce::dontSendNotification);
+    noteHoldSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);  
+    addAndMakeVisible (noteHoldSensitivityLabel);
+    addAndMakeVisible (noteHoldSensitivitySlider);
+    noteHoldSensitivityAttachment.reset (new SliderAttachment (valueTreeState, "noteHoldSensitivity", noteHoldSensitivitySlider));
 
     trackingToggle.setButtonText ("Enable Tracking");
     addAndMakeVisible (trackingToggle);
@@ -55,9 +58,10 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
 
     g.setColour (juce::Colours::white);
-    g.setFont (15.0f);
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    g.setFont (20.0f);
+    // g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
 }
+
 
 void AudioPluginAudioProcessorEditor::resized()
 {
@@ -68,9 +72,9 @@ void AudioPluginAudioProcessorEditor::resized()
     // gainSlider.setBounds (area.removeFromTop (20));
     int x, y, colWidth, rowHeight;
     x=0;
-    y=20;
+    y=0;
     colWidth = area.getWidth() / 2;
-    rowHeight = area.getHeight() / 8;
+    rowHeight = area.getHeight() / 10;
 
     trackingLabel.setBounds (x, y, colWidth, rowHeight);
     y+= rowHeight;
@@ -87,4 +91,8 @@ void AudioPluginAudioProcessorEditor::resized()
     minNoteDurationLabel.setBounds (x, y, colWidth, rowHeight);
     y+= rowHeight;
     minNoteDurationSlider.setBounds (x, y, colWidth, rowHeight);
+    y+= rowHeight;
+    noteHoldSensitivityLabel.setBounds (x, y, colWidth, rowHeight);
+    y+= rowHeight;
+    noteHoldSensitivitySlider.setBounds (x, y, colWidth, rowHeight);
 }

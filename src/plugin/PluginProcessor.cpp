@@ -34,7 +34,11 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                 0.0f, // minimum value
                 250.0f, // maximum value
                 125.0f), // default value
-
+            std::make_unique<juce::AudioParameterFloat> ("noteHoldSensitivity", // parameterID
+                    "noteHoldSensitivity", // parameter name
+                    0.5f, // minimum value
+                    1.0f, // maximum value
+                    0.95f), // default value
               std::make_unique<juce::AudioParameterBool> ("TrackingToggle", // parameterID
                   "Enable Tracking", // parameter name
                   false) // default value
@@ -47,7 +51,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     minNoteDurationParameter = parameters.getRawParameterValue ("minNoteDurationMs");
     noteSensitivityParameter = parameters.getRawParameterValue ("noteSensitivity");
     splitSensitivityParameter = parameters.getRawParameterValue ("splitSensitivity");
-    
+    noteHoldSensitivityParameter = parameters.getRawParameterValue ("noteHoldSensitivity");
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -179,12 +183,15 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     float noteSensitivity = *parameters.getRawParameterValue("noteSensitivity");
     float splitSensitivity = *parameters.getRawParameterValue("splitSensitivity");
     float minNoteDuration = *parameters.getRawParameterValue("minNoteDurationMs");
+    float noteHoldSensitivity = *parameters.getRawParameterValue("noteHoldSensitivity");
     bool tracking = *parameters.getRawParameterValue("TrackingToggle");
 
     transcriber->setNoteSensitivity(noteSensitivity);
     transcriber->setSplitSensitivity(splitSensitivity);
     transcriber->setMinNoteDuration(minNoteDuration);
-    
+    transcriber->setNoteHoldSensitivity(noteHoldSensitivity);
+
+
 
     // copy channel 0
     internalMonoBuffer.copyFrom(0, 0, buffer, 0, 0, numInputSamples);

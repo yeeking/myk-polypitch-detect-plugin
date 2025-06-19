@@ -31,6 +31,7 @@ public:
     void setNoteSensitivity(float s)   { noteSensitivity   = s; }
     void setSplitSensitivity(float s)  { splitSensitivity  = s; }
     void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
+    void setNoteHoldSensitivity(float s) { noteHoldSensitivity = s; }
     /** call this to ask if the transcriber has any MIDI to give you, since transcriptions happen in the background */
     bool hasMidi();
     /** transcription runs automatically in a background thread. This function can be called at any time to collect the most recenttly detected notes */
@@ -47,7 +48,9 @@ private:
     float*      currentWriteBuffer = nullptr;
     float*      currentReadBuffer  = nullptr;
 
-    bool        noteHeld[127]      = { false };
+    bool        noteHeld[128]      = { false };
+    bool        noteSeen[128]      = { false };
+    
 
     TranscriberStatus status       = collectingAudio;
     int      bufferLenSamples      = 0;
@@ -57,6 +60,7 @@ private:
     float    noteSensitivity       = 0.7f;
     float    splitSensitivity      = 0.5f;
     float    minNoteDurationMs     = 125.0f;
+    float   noteHoldSensitivity   = 0.95f;
 
     std::thread              workerThread;
     std::mutex               statusMutex, midiMutex;
