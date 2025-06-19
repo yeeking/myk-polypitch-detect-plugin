@@ -13,6 +13,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                        )
 {
     transcriber = std::make_unique<Transcriber>();
+    transcriber->resetBuffersSamples(4096);
 
 }
 
@@ -158,7 +159,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // --- 3) Send into transcriber at the model's sample rate ---
     // we know this buffer is at BASIC_PITCH_SAMPLE_RATE now:
-    transcriber->storeAudio(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
+    // transcriber->storeAudio(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
+    // queueAudioForTranscription(const float* inAudio, int numSamples, double sampleRate);
+    transcriber->queueAudioForTranscription(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
 
     // --- 4) Pull out any MIDI the transcriber generated ---
     transcriber->collectMidi(midiMessages);
