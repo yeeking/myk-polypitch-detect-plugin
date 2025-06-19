@@ -10,7 +10,7 @@
 #include <atomic>
 #include "AudioUtils.h"
 
-enum TranscriberStatus { collectingAudio, collectingAudioAndTranscribing };
+enum TranscriberStatus { collectingAudio, collectingAudioAndTranscribing, bothBuffersFullPleaseWait};
 
 
 class Transcriber
