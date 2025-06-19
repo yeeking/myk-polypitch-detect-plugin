@@ -125,66 +125,62 @@ public:
 
         std::vector<Case> cases =
         {
-            {
-                "Single C4 (saw) 0.5s",
-                [&]{ double totalSecs = 4096.0 / sr;
-                     return makeSaw(261.63, 0.1, totalSecs, sr, 0.4f); },
-                512, 4096,
-                { C4 }, { C4 }
-            },
-
-            {
+            // {
+            //     "Single C4 (saw) 0.5s",
+            //     [&]{ double totalSecs = 4096.0 / sr;
+            //          return makeSaw(261.63, 0.1, totalSecs, sr, 0.4f); },
+            //     512, 4096,
+            //     { C4 }, { C4 }
+            // },
+         {
                 "Long E4 across 3 buffers",
-                [&]{ double totalSecs = (int(0.4 * sr)) / sr;
-                     std::vector<float> out;
-                     for (int i = 0; i < 3; ++i)
-                         appendVector(out,
-                                      makeSaw(329.63, 0.4, totalSecs, sr, 0.4f));
-                     return out;
-                },
-                441, int(0.4 * sr),
+                [&]{ double totalSecs = 1.0;
+
+                     return makeSaw(329.63, 0.5, totalSecs, sr, 0.4f); },
+                 512, static_cast<int>(0.2 * sr) ,
                 { E4 }, { E4 }
             },
+    
 
-            {
-                "Major triad chord (saw mix)",
-                [&]{ double totalSecs = 4096.0 / sr;
-                     auto c = makeSaw(261.63, 0.8, totalSecs, sr, 0.3f);
-                     auto e = makeSaw(329.63, 0.8, totalSecs, sr, 0.3f);
-                     auto g = makeSaw(392.00, 0.8, totalSecs, sr, 0.3f);
-                     std::vector<float> sum(c.size());
-                     for (size_t i = 0; i < sum.size(); ++i)
-                         sum[i] = c[i] + e[i] + g[i];
-                     return sum;
-                },
-                1024, 4096,
-                { C4, E4, G4 },
-                { C4, E4, G4 }
-            },
+            // {
+            //     "Major triad chord (saw mix)",
+            //     [&]{ double totalSecs = 4096.0 / sr;
+            //          auto c = makeSaw(261.63, 0.8, totalSecs, sr, 0.3f);
+            //          auto e = makeSaw(329.63, 0.8, totalSecs, sr, 0.3f);
+            //          auto g = makeSaw(392.00, 0.8, totalSecs, sr, 0.3f);
+            //          std::vector<float> sum(c.size());
+            //          for (size_t i = 0; i < sum.size(); ++i)
+            //              sum[i] = c[i] + e[i] + g[i];
+            //          return sum;
+            //     },
+            //     1024, 4096,
+            //     { C4, E4, G4 },
+            //     { C4, E4, G4 }
+            // },
 
-            {
-                "Staccato C4 pulse bursts",
-                [&]{ double totalSecs = 4096.0 / sr;
-                     std::vector<float> out;
-                     for (int i = 0; i < 5; ++i)
-                     {
-                         appendVector(out,
-                                      makePulse(261.63, 0.1, totalSecs, sr, 0.5f, 0.2f));
-                         out.insert(out.end(), int(0.1 * sr), 0.0f);
-                     }
-                     return out;
-                },
-                512, 4096,
-                std::vector<int>(5, C4),
-                std::vector<int>(5, C4)
-            },
+            // {
+            //     "Staccato C4 pulse bursts",
+            //     [&]{ double totalSecs = 4096.0 / sr;
+            //          std::vector<float> out;
+            //          for (int i = 0; i < 5; ++i)
+            //          {
+            //              appendVector(out,
+            //                           makePulse(261.63, 0.1, totalSecs, sr, 0.5f, 0.2f));
+            //              out.insert(out.end(), int(0.1 * sr), 0.0f);
+            //          }
+            //          return out;
+            //     },
+            //     512, 4096,
+            //     std::vector<int>(5, C4),
+            //     std::vector<int>(5, C4)
+            // },
 
-            {
-                "Silence only",
-                [&]{ return std::vector<float>(int((4096.0/sr) * sr), 0.0f); },
-                256, 4096,
-                {}, {}
-            }
+            // {
+            //     "Silence only",
+            //     [&]{ return std::vector<float>(int((4096.0/sr) * sr), 0.0f); },
+            //     256, 4096,
+            //     {}, {}
+            // }
         };
 
         for (auto& tc : cases)

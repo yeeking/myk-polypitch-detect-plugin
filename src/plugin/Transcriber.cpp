@@ -82,7 +82,7 @@ void Transcriber::queueAudioForTranscription(const float* inAudio, int numSample
         samplesWritten  += chunk;
         offset          += chunk;
         remaining       -= chunk;
-        std::cout << "Trnascriber queued " << samplesWritten << " of buff " << bufferLenSamples << std::endl;
+        // std::cout << "Trnascriber queued " << samplesWritten << " of buff " << bufferLenSamples << std::endl;
 
         if (samplesWritten >= bufferLenSamples) // time to send the buffer to the model then switch to the other buffer 
         {
