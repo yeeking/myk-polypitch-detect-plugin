@@ -45,7 +45,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
           })
 {
     transcriber = std::make_unique<Transcriber>();
-    transcriber->resetBuffersSamples(8192);
+    transcriber->resetBuffersSamples(22050);
 
     trackingParameter = parameters.getRawParameterValue ("TrackingToggle");
     minNoteDurationParameter = parameters.getRawParameterValue ("minNoteDurationMs");
@@ -177,6 +177,8 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
+    juce::ScopedNoDenormals noDenormals;
+
     const int numInputChannels = buffer.getNumChannels();
     const int numInputSamples  = buffer.getNumSamples();
 
@@ -194,12 +196,14 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
 
     // copy channel 0
+
     internalMonoBuffer.copyFrom(0, 0, buffer, 0, 0, numInputSamples);
     // add other channels
     for (int ch = 1; ch < numInputChannels; ++ch)
         internalMonoBuffer.addFrom(0, 0, buffer, ch, 0, numInputSamples);
     // average
     internalMonoBuffer.applyGain(1.0f / static_cast<float>(numInputChannels));
+    // internalMonoBuffer.applyGate(0.0f, 1.0f); // remove DC offset
 
     const float* src = internalMonoBuffer.getReadPointer(0);
     float*       dst = internalDownsampledBuffer.getWritePointer(0);

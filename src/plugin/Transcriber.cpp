@@ -158,7 +158,7 @@ void Transcriber::runModel(float* readBuffer)
 
     // reset the noteSeen array
     for (int i=0;i<128;++i){
-        noteSeen[i] = true;
+        noteSeen[i] = false;
     }
     juce::MidiBuffer localMidi;
     for (auto& ev : events)
@@ -170,7 +170,7 @@ void Transcriber::runModel(float* readBuffer)
         bool wasHeld = noteHeld[ev.pitch];
         bool isHeld  = (ev.endTime > noteHoldSensitivity * bufferLenSecs);
         if (isHeld){
-            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over " << noteSensitivity<< "  of buf length " << (noteHoldSensitivity * bufferLenSecs) << std::endl;  
+            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over " << noteHoldSensitivity<< "  of buf length " << (noteHoldSensitivity * bufferLenSecs) << std::endl;  
         }
 
         int startSample = static_cast<int>(ev.startTime * bufferLenSamples);
