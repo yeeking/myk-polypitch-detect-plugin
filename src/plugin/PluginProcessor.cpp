@@ -193,10 +193,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     transcriber->setMinNoteDuration(minNoteDuration);
     transcriber->setNoteHoldSensitivity(noteHoldSensitivity);
 
-
-
-    // copy channel 0
-
     internalMonoBuffer.copyFrom(0, 0, buffer, 0, 0, numInputSamples);
     // add other channels
     for (int ch = 1; ch < numInputChannels; ++ch)
@@ -275,24 +271,6 @@ bool AudioPluginAudioProcessor::collectMIDIFromTranscriber()
 }
 
 
-// void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
-//                                               juce::MidiBuffer& midiMessages)
-// {
-    
-//     // resample 
-//     resampleProcessor.processBlock()
-    
-//     // get a const float* to channel 0’s data…
-//     const float* channelData = buffer.getReadPointer (0);
-//     // …but our API wants a float*, so we const_cast it away
-//     float*       audioData   = const_cast<float*> (channelData);
-
-//     int numSamples = buffer.getNumSamples();
-
-//     transcriber->storeAudio (audioData, numSamples, getSampleRate());
-//     transcriber->collectMidi(midiMessages);
-
-// }
 
 //==============================================================================
 bool AudioPluginAudioProcessor::hasEditor() const
