@@ -172,9 +172,10 @@ void Transcriber::runModel(float* readBuffer)
         if (isHeld){
             std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over " << noteHoldSensitivity<< "  of buf length " << (noteHoldSensitivity * bufferLenSecs) << std::endl;  
         }
-
+        // these are based on the model's sample rate of 22050
         int startSample = static_cast<int>(ev.startTime * bufferLenSamples);
         int endSample   = static_cast<int>(ev.endTime   * bufferLenSamples);
+        // now scale them to the current system sampling rate 
 
         uint8_t velocity = static_cast<uint8_t>(std::clamp(amp, 0.0f, 1.0f) * 127.0f);
 
@@ -257,8 +258,10 @@ void Transcriber::collectMidi(juce::MidiBuffer& outputBuffer)
 {
     std::lock_guard<std::mutex> ml(midiMutex);
     // std::cout << "collect MIDI Pending midi has " << pendingMidi.getNumEvents() << std::endl;
-    outputBuffer.swapWith(pendingMidi);
-    pendingMidi.clear();  // ready for next round
+    if (pendingMidi.getNumEvents() > 0){
+        outputBuffer.swapWith(pendingMidi);
+        pendingMidi.clear();  // ready for next round
+    }
 }
 
 TranscriberStatus Transcriber::getStatus()
