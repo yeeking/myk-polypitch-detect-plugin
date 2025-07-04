@@ -140,6 +140,16 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     int maxDown = resampleProcessor.getNumOutSamplesOnNextProcessBlock(samplesPerBlock);
     internalDownsampledBuffer.setSize(1, maxDown, false, true, false);
 
+    // set transcriber buffer size to 
+    // the closest multiple of 'maxDown' which is
+    // the number of samples we send each time in processBlock 
+    // so the timing works :) 
+    int transcriberBufSize = maxDown;
+    while (transcriberBufSize < 22050){
+        transcriberBufSize += maxDown;
+    }
+    transcriber->resetBuffersSamples(transcriberBufSize);
+
     std::cout << "prepare to play sr: "<< getSampleRate() << " mono buff len " << internalMonoBuffer.getNumSamples() << " downsamp buff len: " << internalDownsampledBuffer.getNumSamples() << std::endl;
 }
 
