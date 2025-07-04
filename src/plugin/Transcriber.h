@@ -34,7 +34,9 @@ public:
     void setNoteHoldSensitivity(float s) { noteHoldSensitivity = s; }
     /** call this to ask if the transcriber has any MIDI to give you, since transcriptions happen in the background */
     bool hasMidi();
-    /** transcription runs automatically in a background thread. This function can be called at any time to collect the most recenttly detected notes */
+    /** if any midi has been detected and stored in the transcriber thread
+     * put that midi into the sent buffer (clearing what was there), and clear internal pending midi buffer
+     */
     void collectMidi(juce::MidiBuffer& outputBuffer);
     TranscriberStatus getStatus();
 private:

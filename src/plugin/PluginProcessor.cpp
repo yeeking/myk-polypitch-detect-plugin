@@ -42,7 +42,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
               std::make_unique<juce::AudioParameterBool> ("TrackingToggle", // parameterID
                   "Enable Tracking", // parameter name
                   false) // default value
-          })
+          }), sampleOffset{0}
 {
     transcriber = std::make_unique<Transcriber>();
     transcriber->resetBuffersSamples(22050);
@@ -218,7 +218,59 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     transcriber->queueAudioForTranscription(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
 
     // --- 4) Pull out any MIDI the transcriber generated ---
-    transcriber->collectMidi(midiMessages);
+    bool gotNewMIDI = collectMIDIFromTranscriber();
+    // now send any MIDI from pending MIDI that has the right timestamp
+    if (gotNewMIDI) {// reset the sample offset if a new transcription came in 
+        sampleOffset = 0;
+    }
+    // add midi from sampleOffset to sampleOffset + buffer length to
+    // midiMessages buffer
+    int endSample = sampleOffset + numInputSamples;
+    for (auto metadata : pendingMidi) // JUCE11‑style iteration
+    {
+        int samplePos = metadata.samplePosition;
+        if (samplePos >= sampleOffset && samplePos < endSample)
+        {
+            midiMessages.addEvent (metadata.getMessage(), samplePos % numInputSamples);
+        }
+    }
+    // clear the messages we've used 
+    pendingMidi.clear (sampleOffset, numInputSamples);
+    sampleOffset = endSample;
+
+}
+
+
+bool AudioPluginAudioProcessor::collectMIDIFromTranscriber()
+{
+    int before = pendingMidi.getNumEvents();
+    // if we call this before we've sent everything 
+    // in pending MIDI ... we have a problem cos remaining stuff in pending gets wiped
+    if (before > 0) {
+        // still need to send out this pending midi before collecting the new stuff
+        // so just return false 
+        return false; 
+    }
+    // ok we have no pending midi so we are ready to collect! 
+    MidiBuffer tempBuffer{};
+    transcriber->collectMidi(tempBuffer);
+    // the collected MIDI sample positions will be based on a sample rate of 
+    // BASIC_PITCH_SAMPLE_RATE
+    double ratio = getSampleRate() / BASIC_PITCH_SAMPLE_RATE;
+    // https://docs.juce.com/master/structMidiMessageMetadata.html
+    for (auto metadata : tempBuffer) // JUCE11‑style iteration
+    {
+        double samplePos = metadata.samplePosition;
+        samplePos *= ratio; // shift to host's sample rate
+        MidiMessage msg = metadata.getMessage();
+        msg.setTimeStamp(samplePos);
+        pendingMidi.addEvent(msg, static_cast<int>(samplePos));
+    }
+
+    int after = pendingMidi.getNumEvents();
+
+    if (after > before) return true; // got some midi 
+    else return false; // got no midi 
 
 }
 

@@ -49,6 +49,12 @@ public:
 
 private:
     std::unique_ptr<Transcriber> transcriber;
+    /** collects midi from transcriber and stores it internally with fixed times
+     * if no MIDI collected, returns false, if MIDI collected, return true 
+     */
+    bool collectMIDIFromTranscriber();
+    juce::MidiBuffer pendingMidi; 
+    long sampleOffset;
     // juce::AudioBuffer<float> resampledBuffer;
     Resampler resampleProcessor; 
 
