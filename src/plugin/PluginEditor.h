@@ -1,12 +1,16 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "NoteIndicatorComponent.h"
+
 // shorthands for the gui components for controlling params
 typedef juce::AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
 typedef juce::AudioProcessorValueTreeState::ButtonAttachment ButtonAttachment;
 
 //==============================================================================
-class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
+class AudioPluginAudioProcessorEditor final : 
+        public juce::AudioProcessorEditor,
+        private juce::Timer
 {
 public:
     explicit AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p, juce::AudioProcessorValueTreeState& vts);
@@ -17,6 +21,8 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
+    // from Timer
+    void timerCallback() override; // polls processor mailbox
 
 private:
     // This reference is provided as a quick way for your editor to
@@ -44,6 +50,10 @@ private:
     juce::Label noteHoldSensitivityLabel;
     juce::Slider noteHoldSensitivitySlider;
     std::unique_ptr<SliderAttachment> noteHoldSensitivityAttachment;
+
+
+    NoteIndicatorComponent noteIndicator;
+    uint32_t lastSeenStamp { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

@@ -41,10 +41,16 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     
     // setSize (paramSliderWidth + paramLabelWidth, juce::jmax (100, paramControlHeight * 2));
 
-
+    addAndMakeVisible(noteIndicator);
+    noteIndicator.setFrameRateHz(30);
+    noteIndicator.setDecaySeconds(5.0f);
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (800, 500);
+
+    // start polling the processor for 'last midi message'
+    startTimerHz(30); 
+
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
@@ -73,8 +79,10 @@ void AudioPluginAudioProcessorEditor::resized()
     int x, y, colWidth, rowHeight;
     x=0;
     y=0;
+    int numRows = 10;
     colWidth = area.getWidth() / 2;
-    rowHeight = area.getHeight() / 10;
+    rowHeight = area.getHeight() / numRows;
+
 
     trackingLabel.setBounds (x, y, colWidth, rowHeight);
     y+= rowHeight;
@@ -95,4 +103,29 @@ void AudioPluginAudioProcessorEditor::resized()
     noteHoldSensitivityLabel.setBounds (x, y, colWidth, rowHeight);
     y+= rowHeight;
     noteHoldSensitivitySlider.setBounds (x, y, colWidth, rowHeight);
+    y = 0;
+    x = x+colWidth;
+    noteIndicator.setBounds (x, y, colWidth, rowHeight);
+    
+}
+
+
+void AudioPluginAudioProcessorEditor::timerCallback()
+{
+    int noteIn; float velIn; int noteOut; float velOut;
+
+    if (processorRef.pullMIDIForGUI(noteIn, velIn, lastSeenStamp))
+    {
+        // Synthesize a small message to feed the GUI indicator.
+        const bool isOn = velIn > 0.0f;
+        const int channel = 1; // arbitrary; GUI only uses note/velocity
+        juce::MidiMessage msg = isOn ? juce::MidiMessage::noteOn(channel, noteIn, velIn)
+                                   : juce::MidiMessage::noteOff(channel, noteIn);
+        
+        const int note = msg.getNoteNumber();
+        const float vel = msg.getFloatVelocity();
+
+        noteIndicator.setNote(note, vel);
+
+    }
 }

@@ -47,6 +47,11 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    /** call this from anywhere to tell the processor about some midi that was received so it can save it for the GUI to access later */
+    void pushMIDIForGUI(const juce::MidiMessage& msg);
+    /** call this from the UI message thread if you want to know what the last received midi message was */
+    bool pullMIDIForGUI(int& note, float& vel, uint32_t& lastSeenStamp);
+
 private:
     std::unique_ptr<Transcriber> transcriber;
     /** collects midi from transcriber and stores it internally with fixed times
@@ -69,8 +74,15 @@ private:
     std::atomic<float>* splitSensitivityParameter = nullptr;
     std::atomic<float>* minNoteDurationParameter = nullptr;
     std::atomic<float>* noteHoldSensitivityParameter = nullptr;
-    // std::atomic<float>* gainParameter = nullptr;
 
+    // std::atomic<float>* gainParameter = nullptr;
+    // used to expose last note detected to the GUI
+    // which will poll us
+    std::atomic<int>   lastNote {-1};
+    std::atomic<float> lastVelocity  {0.0f};            // 0..1
+    std::atomic<uint32_t> lastNoteStamp {0};           // increments on every new note event
+    // this one is used for the input level meter
+    std::atomic<float> lastRMS  {0.0f};            
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
