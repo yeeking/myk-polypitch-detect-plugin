@@ -237,6 +237,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         int samplePos = metadata.samplePosition;
         if (samplePos >= sampleOffset && samplePos < endSample)
         {
+            if (metadata.getMessage().isNoteOn()){
+                pushMIDIForGUI(metadata.getMessage());
+            }
             midiMessages.addEvent (metadata.getMessage(), samplePos % numInputSamples);
         }
     }
@@ -318,6 +321,38 @@ void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeI
 
 
 }
+
+
+// Publish note/velocity to the UI mailbox (RT-safe, no locks/allocs).
+void AudioPluginAudioProcessor::pushMIDIForGUI(const juce::MidiMessage& msg)
+{
+    if (!msg.isNoteOnOrOff())
+        return;
+
+    const int   note = msg.getNoteNumber();
+    const float vel  = msg.isNoteOn() ? juce::jlimit(0.0f, 1.0f, msg.getFloatVelocity())
+                                      : 0.0f;
+
+    lastNote.store(note, std::memory_order_relaxed);
+    lastVelocity.store(vel,   std::memory_order_relaxed);
+    lastNoteStamp.fetch_add(1, std::memory_order_release);
+}
+
+// Pull latest event if stamp changed since lastSeenStamp (message thread).
+bool AudioPluginAudioProcessor::pullMIDIForGUI(int& note, float& vel, uint32_t& lastSeenStamp)
+{
+    const auto s = lastNoteStamp.load(std::memory_order_acquire);
+    if (s == lastSeenStamp) return false; // don't send same note twice
+
+    lastSeenStamp = s;
+    note = lastNote.load(std::memory_order_relaxed);
+    if (note == -1) return false; // starting condition is that the note is -1
+
+    vel  = lastVelocity.load(std::memory_order_relaxed);
+    return true;
+}
+
+
 
 //==============================================================================
 // This creates new instances of the plugin..
