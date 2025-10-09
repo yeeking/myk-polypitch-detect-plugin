@@ -13,12 +13,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                        )
     , parameters (*this, nullptr, juce::Identifier ("APVTSTutorial"),
           {
-    // void setNoteSensitivity(float s)   { noteSensitivity   = s; }
-    // void setSplitSensitivity(float s)  { splitSensitivity  = s; }
-    // void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
-    // float    noteSensitivity       = 0.7f;
-    // float    splitSensitivity      = 0.5f;
-    // float    minNoteDurationMs     = 125.0f;
             std::make_unique<juce::AudioParameterFloat> ("noteSensitivity", // parameterID
                 "noteSensitivity", // parameter name
                 0.0f, // minimum value
@@ -192,6 +186,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const int numInputChannels = buffer.getNumChannels();
     const int numInputSamples  = buffer.getNumSamples();
 
+    pushRMSForGUI(buffer.getRMSLevel(0,0,buffer.getNumSamples()));
+    
     float noteSensitivity = *parameters.getRawParameterValue("noteSensitivity");
     float splitSensitivity = *parameters.getRawParameterValue("splitSensitivity");
     float minNoteDuration = *parameters.getRawParameterValue("minNoteDurationMs");
@@ -349,6 +345,19 @@ bool AudioPluginAudioProcessor::pullMIDIForGUI(int& note, float& vel, uint32_t& 
     if (note == -1) return false; // starting condition is that the note is -1
 
     vel  = lastVelocity.load(std::memory_order_relaxed);
+    return true;
+}
+
+// Publish note/velocity to the UI mailbox (RT-safe, no locks/allocs).
+void AudioPluginAudioProcessor::pushRMSForGUI(float rms)
+{
+    lastRMS.store(rms, std::memory_order_relaxed);
+}
+
+// Pull latest event if stamp changed since lastSeenStamp (message thread).
+bool AudioPluginAudioProcessor::pullRMSForGUI(float& rms)
+{
+    rms = lastRMS.load(std::memory_order_relaxed);
     return true;
 }
 

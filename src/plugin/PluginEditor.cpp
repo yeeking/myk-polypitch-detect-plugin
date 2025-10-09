@@ -11,7 +11,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
 {
     // juce::ignoreUnused (processor);
 
-    noteSensitivityLabel.setText ("Note Sensitivity", juce::dontSendNotification);
+    noteSensitivityLabel.setText ("Sensitivity", juce::dontSendNotification);
     noteSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);  
     addAndMakeVisible (noteSensitivityLabel);
     addAndMakeVisible (noteSensitivitySlider);
@@ -33,6 +33,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     noteHoldSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);  
     addAndMakeVisible (noteHoldSensitivityLabel);
     addAndMakeVisible (noteHoldSensitivitySlider);
+    
     noteHoldSensitivityAttachment.reset (new SliderAttachment (valueTreeState, "noteHoldSensitivity", noteHoldSensitivitySlider));
 
     trackingToggle.setButtonText ("Enable Tracking");
@@ -44,6 +45,11 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(noteIndicator);
     noteIndicator.setFrameRateHz(30);
     noteIndicator.setDecaySeconds(5.0f);
+
+    addAndMakeVisible(levelMeter);
+    levelMeter.setFrameRateHz(30);
+    levelMeter.setDecaySeconds(10.0f);
+
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (800, 500);
@@ -105,14 +111,16 @@ void AudioPluginAudioProcessorEditor::resized()
     noteHoldSensitivitySlider.setBounds (x, y, colWidth, rowHeight);
     y = 0;
     x = x+colWidth;
-    noteIndicator.setBounds (x, y, colWidth, rowHeight);
+    noteIndicator.setBounds(x, y, colWidth, rowHeight);
+    y+= rowHeight;
+    levelMeter.setBounds(x, y, colWidth, rowHeight);
     
 }
 
 
 void AudioPluginAudioProcessorEditor::timerCallback()
 {
-    int noteIn; float velIn; int noteOut; float velOut;
+    int noteIn; float velIn; int noteOut; float velOut; float rms;
 
     if (processorRef.pullMIDIForGUI(noteIn, velIn, lastSeenStamp))
     {
@@ -128,4 +136,10 @@ void AudioPluginAudioProcessorEditor::timerCallback()
         noteIndicator.setNote(note, vel);
 
     }
+
+    if (processorRef.pullRMSForGUI(rms)){
+        levelMeter.setRMS(rms);
+    }
+
+
 }

@@ -52,6 +52,11 @@ public:
     /** call this from the UI message thread if you want to know what the last received midi message was */
     bool pullMIDIForGUI(int& note, float& vel, uint32_t& lastSeenStamp);
 
+    /** call this from anywhere to tell the processor about some midi that was received so it can save it for the GUI to access later */
+    void pushRMSForGUI(float rms);
+    /** call this from the UI message thread if you want to know what the last received midi message was */
+    bool pullRMSForGUI(float& rms);
+
 private:
     std::unique_ptr<Transcriber> transcriber;
     /** collects midi from transcriber and stores it internally with fixed times
