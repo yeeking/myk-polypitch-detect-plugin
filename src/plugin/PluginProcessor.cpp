@@ -221,7 +221,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     
     // maybe apply a gate here? 
     float resampleDB = Decibels::gainToDecibels(internalDownsampledBuffer.getRMSLevel(0, 0, internalDownsampledBuffer.getNumSamples()));
-    if (resampleDB < -50){
+    if (resampleDB < -45){
         internalDownsampledBuffer.clear();
     }
     transcriber->queueAudioForTranscription(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
