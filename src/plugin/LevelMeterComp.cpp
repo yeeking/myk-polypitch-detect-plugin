@@ -1,4 +1,5 @@
 #include "LevelMeterComp.h"
+#include "juce_graphics/juce_graphics.h"
 #include <atomic>
 
 LevelMeterComp::LevelMeterComp()
@@ -51,13 +52,19 @@ void LevelMeterComp::setRedrawThreshold(float threshold01)
 
 void LevelMeterComp::paint(juce::Graphics& g)
 {
+    const float brightness_0_1 = brightness.load(std::memory_order_relaxed);
+    const uint8 brighness_0_255 = static_cast<uint8>(brightness_0_1  * 255.0f);
+    juce::Colour barColour = juce::Colour::fromRGB(brighness_0_255, brighness_0_255, brighness_0_255);
+    
     auto bounds = getLocalBounds().toFloat();
 
     // Base backplate
     auto outlineColour = findColour(juce::GroupComponent::outlineColourId);
     auto fillColour    = findColour(juce::TextButton::buttonColourId).withMultipliedAlpha(0.12f);
-
-    g.setColour(fillColour);
+    // auto fillColour    = juce::Colours::red;
+    //  juce::TextButton::buttonColourId).withMultipliedAlpha(0.12f);
+    
+    g.setColour(barColour);
     g.fillRoundedRectangle(bounds, 6.0f);
 
     g.setColour(outlineColour);
@@ -75,13 +82,8 @@ void LevelMeterComp::paint(juce::Graphics& g)
     g.setFont(juce::Font(fontSize, juce::Font::bold));
 
     // Contrast-aware text
-    const float b = brightness.load(std::memory_order_relaxed);
-    // std::cout << "normed db from  "<< b << " to " << ((b + 100.0f) / 100.0f) * 255.0f << std::endl;
-
-    const uint8 shade = static_cast<uint8>(b  * 255.0f);
-    juce::Colour textColour = juce::Colour::fromRGB(shade, shade, shade);
     
-    g.setColour(textColour);
+    g.setColour(barColour);
     g.drawFittedText(labelText, getLocalBounds(), juce::Justification::centred, 1);
 
 }

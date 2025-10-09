@@ -111,9 +111,9 @@ void AudioPluginAudioProcessorEditor::resized()
     noteHoldSensitivitySlider.setBounds (x, y, colWidth, rowHeight);
     y = 0;
     x = x+colWidth;
-    noteIndicator.setBounds(x, y, colWidth, rowHeight);
-    y+= rowHeight;
     levelMeter.setBounds(x, y, colWidth, rowHeight);
+    y+= rowHeight;    
+    noteIndicator.setBounds(x, y, colWidth, rowHeight*2);
     
 }
 
