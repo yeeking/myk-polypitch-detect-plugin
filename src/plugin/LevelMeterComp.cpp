@@ -49,43 +49,55 @@ void LevelMeterComp::setRedrawThreshold(float threshold01)
 {
     redrawThresh = juce::jlimit(0.0f, 1.0f, threshold01);
 }
+// void LevelMeterComp::paint(juce::Graphics& g)
+// {
+//     auto area = getLocalBounds();
+//     const float brightness_0_1 = brightness.load(std::memory_order_relaxed);
+
+//     // Background
+//     g.setColour(juce::Colours::darkgrey);
+//     g.fillRect(area);
+
+//     // Normalised 0–1 value
+//     const float norm = juce::jlimit(0.0f, 1.0f, brightness_0_1);
+
+//     // Left→Right gradient
+//     juce::ColourGradient grad(
+//         juce::Colours::lime, (float)area.getX(),      (float)area.getCentreY(),
+//         juce::Colours::red,  (float)area.getRight(),  (float)area.getCentreY(),
+//         false);
+//     g.setGradientFill(grad);
+
+//     const int barWidth = (int)std::round(norm * area.getWidth());
+//     g.fillRect(area.removeFromLeft(barWidth));
+// }
 
 void LevelMeterComp::paint(juce::Graphics& g)
 {
-    const float brightness_0_1 = brightness.load(std::memory_order_relaxed);
-    const uint8 brighness_0_255 = static_cast<uint8>(brightness_0_1  * 255.0f);
-    juce::Colour barColour = juce::Colour::fromRGB(brighness_0_255, brighness_0_255, brighness_0_255);
-    
-    auto bounds = getLocalBounds().toFloat();
+    auto area = getLocalBounds();
+    const float db = lastRMS.load(std::memory_order_relaxed);
 
-    // Base backplate
-    auto outlineColour = findColour(juce::GroupComponent::outlineColourId);
-    auto fillColour    = findColour(juce::TextButton::buttonColourId).withMultipliedAlpha(0.12f);
-    // auto fillColour    = juce::Colours::red;
-    //  juce::TextButton::buttonColourId).withMultipliedAlpha(0.12f);
-    
-    g.setColour(barColour);
-    g.fillRoundedRectangle(bounds, 6.0f);
+    // Background
+    g.setColour(juce::Colours::darkgrey);
+    g.fillRect(area);
 
-    g.setColour(outlineColour);
-    g.drawRoundedRectangle(bounds, 6.0f, 1.0f);
+    // Sensible meter window: from -60 dB (silent) to 0 dB (full scale)
+    constexpr float minDb = -60.0f;
+    constexpr float maxDb =   0.0f;
 
-    // Note number text
-    juce::String labelText = "-";
-    const int rmsValue = static_cast<int> (lastRMS.load(std::memory_order_relaxed));
-    labelText = juce::String{"RMS: "+ std::to_string(rmsValue)};
+    // Clamp and map dB → 0..1
+    const float dbClamped = juce::jlimit(minDb, maxDb, db);
+    const float norm = juce::jmap(dbClamped, minDb, maxDb, 0.0f, 1.0f);
+    // std::cout << "orig db "<< db << " clamps " << dbClamped << " 0 to 1 " << norm  << std::endl; 
+    // Left→Right gradient
+    juce::ColourGradient grad(
+        juce::Colours::lime, (float)area.getX(),     (float)area.getCentreY(),
+        juce::Colours::red,  (float)area.getRight(), (float)area.getCentreY(),
+        false);
+    g.setGradientFill(grad);
 
-    const float h = bounds.getHeight();
-    const float w = bounds.getWidth();
-    float fontSize = juce::jmin(h * 0.70f, w * 0.45f);
-
-    g.setFont(juce::Font(fontSize, juce::Font::bold));
-
-    // Contrast-aware text
-    
-    g.setColour(barColour);
-    g.drawFittedText(labelText, getLocalBounds(), juce::Justification::centred, 1);
-
+    const int barWidth = (int)std::round(norm * area.getWidth());
+    g.fillRect(area.removeFromLeft(barWidth));
 }
 
 void LevelMeterComp::resized()
