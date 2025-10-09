@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "juce_audio_basics/juce_audio_basics.h"
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -217,6 +218,12 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // we know this buffer is at BASIC_PITCH_SAMPLE_RATE now:
     // transcriber->storeAudio(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
     // queueAudioForTranscription(const float* inAudio, int numSamples, double sampleRate);
+    
+    // maybe apply a gate here? 
+    float resampleDB = Decibels::gainToDecibels(internalDownsampledBuffer.getRMSLevel(0, 0, internalDownsampledBuffer.getNumSamples()));
+    if (resampleDB < -50){
+        internalDownsampledBuffer.clear();
+    }
     transcriber->queueAudioForTranscription(internalDownsampledBuffer.getReadPointer(0), numDown, BASIC_PITCH_SAMPLE_RATE);
 
     // --- 4) Pull out any MIDI the transcriber generated ---
