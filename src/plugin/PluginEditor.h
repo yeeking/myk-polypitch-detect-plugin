@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include "NoteIndicatorComponent.h"
+#include "LevelMeterComp.h"
 
 // shorthands for the gui components for controlling params
 typedef juce::AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
@@ -53,6 +54,8 @@ private:
 
 
     NoteIndicatorComponent noteIndicator;
+    LevelMeterComp levelMeter;
+
     uint32_t lastSeenStamp { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
