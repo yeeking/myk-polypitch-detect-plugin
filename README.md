@@ -5,7 +5,7 @@ VST plugin that does realtime polyphonic audio to MIDI conversion
 ```
 git clone https://github.com/yeeking/myk-polypitch-detect-plugin.git
 cd myk-polypitch-detect-plugin
-cd ThirdParty
+cd libs
 # I always mess up submodules so do this instead:
 git clone https://github.com/juce-framework/JUCE.git
 git clone https://github.com/jatinchowdhury18/RTNeural.git
