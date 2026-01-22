@@ -186,10 +186,11 @@ bool PianoRollComponent::keyPressed(const juce::KeyPress& key)
 
 void PianoRollComponent::timerCallback()
 {
-    if (!isFrozen)
-        currentTimeSeconds = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    if (isFrozen)
+        return;
 
-    pruneOldNotes(isFrozen ? freezeTimeSeconds : currentTimeSeconds);
+    currentTimeSeconds = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    pruneOldNotes(currentTimeSeconds);
     repaint();
 }
 
