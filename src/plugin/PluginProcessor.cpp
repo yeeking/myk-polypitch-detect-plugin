@@ -29,11 +29,16 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                 0.0f, // minimum value
                 250.0f, // maximum value
                 125.0f), // default value
-            std::make_unique<juce::AudioParameterFloat> ("noteHoldSensitivity", // parameterID
-                    "noteHoldSensitivity", // parameter name
-                    0.5f, // minimum value
-                    1.0f, // maximum value
-                    0.95f), // default value
+            std::make_unique<juce::AudioParameterFloat> ("minNoteVelocity", // parameterID
+                "minNoteVelocity", // parameter name
+                0.0f, // minimum value
+                1.0f, // maximum value
+                0.0f), // default value
+            std::make_unique<juce::AudioParameterFloat> ("latencySeconds", // parameterID
+                "latencySeconds", // parameter name
+                0.05f, // minimum value
+                0.5f, // maximum value
+                0.1f), // default value
               std::make_unique<juce::AudioParameterBool> ("TrackingToggle", // parameterID
                   "Enable Tracking", // parameter name
                   false) // default value
@@ -44,9 +49,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
     trackingParameter = parameters.getRawParameterValue ("TrackingToggle");
     minNoteDurationParameter = parameters.getRawParameterValue ("minNoteDurationMs");
+    minNoteVelocityParameter = parameters.getRawParameterValue ("minNoteVelocity");
     noteSensitivityParameter = parameters.getRawParameterValue ("noteSensitivity");
     splitSensitivityParameter = parameters.getRawParameterValue ("splitSensitivity");
-    noteHoldSensitivityParameter = parameters.getRawParameterValue ("noteHoldSensitivity");
+    latencySecondsParameter = parameters.getRawParameterValue ("latencySeconds");
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -144,6 +150,9 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
         transcriberBufSize += maxDown;
     }
     transcriber->resetBuffersSamples(transcriberBufSize);
+    const float latencySeconds = latencySecondsParameter ? latencySecondsParameter->load() : 0.1f;
+    transcriber->setLatencySeconds(latencySeconds);
+    lastLatencySeconds = latencySeconds;
 
     std::cout << "prepare to play sr: "<< getSampleRate() << " mono buff len " << internalMonoBuffer.getNumSamples() << " downsamp buff len: " << internalDownsampledBuffer.getNumSamples() << std::endl;
 }
@@ -192,13 +201,18 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     float noteSensitivity = *parameters.getRawParameterValue("noteSensitivity");
     float splitSensitivity = *parameters.getRawParameterValue("splitSensitivity");
     float minNoteDuration = *parameters.getRawParameterValue("minNoteDurationMs");
-    float noteHoldSensitivity = *parameters.getRawParameterValue("noteHoldSensitivity");
+    float minNoteVelocity = *parameters.getRawParameterValue("minNoteVelocity");
+    float latencySeconds = *parameters.getRawParameterValue("latencySeconds");
     bool tracking = *parameters.getRawParameterValue("TrackingToggle");
 
     transcriber->setNoteSensitivity(noteSensitivity);
     transcriber->setSplitSensitivity(splitSensitivity);
     transcriber->setMinNoteDuration(minNoteDuration);
-    transcriber->setNoteHoldSensitivity(noteHoldSensitivity);
+    transcriber->setMinNoteVelocity(minNoteVelocity);
+    if (latencySeconds != lastLatencySeconds) {
+        transcriber->setLatencySeconds(latencySeconds);
+        lastLatencySeconds = latencySeconds;
+    }
 
     internalMonoBuffer.copyFrom(0, 0, buffer, 0, 0, numInputSamples);
     // add other channels
@@ -243,6 +257,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             if (metadata.getMessage().isNoteOn()){
                 pushMIDIForGUI(metadata.getMessage());
             }
+            if (metadata.getMessage().isNoteOnOrOff()){
+                pushNoteEventForUI(metadata.getMessage());
+            }
             midiMessages.addEvent (metadata.getMessage(), samplePos % numInputSamples);
         }
     }
@@ -250,6 +267,41 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     pendingMidi.clear (sampleOffset, numInputSamples);
     sampleOffset = endSample;
 
+}
+
+void AudioPluginAudioProcessor::pushNoteEventForUI(const juce::MidiMessage& msg)
+{
+    if (!msg.isNoteOnOrOff())
+        return;
+
+    int startIndex = 0;
+    int blockSize = 0;
+    int startIndex2 = 0;
+    int blockSize2 = 0;
+    noteEventFifo.prepareToWrite(1, startIndex, blockSize, startIndex2, blockSize2);
+    if (blockSize == 0)
+        return;
+
+    auto& ev = noteEventBuffer[static_cast<size_t>(startIndex)];
+    ev.note = msg.getNoteNumber();
+    ev.velocity = msg.isNoteOn() ? msg.getFloatVelocity() : 0.0f;
+    ev.isNoteOn = msg.isNoteOn();
+    noteEventFifo.finishedWrite(blockSize);
+}
+
+bool AudioPluginAudioProcessor::popNextNoteEvent(NoteEvent& event)
+{
+    int startIndex = 0;
+    int blockSize = 0;
+    int startIndex2 = 0;
+    int blockSize2 = 0;
+    noteEventFifo.prepareToRead(1, startIndex, blockSize, startIndex2, blockSize2);
+    if (blockSize == 0)
+        return false;
+
+    event = noteEventBuffer[static_cast<size_t>(startIndex)];
+    noteEventFifo.finishedRead(blockSize);
+    return true;
 }
 
 

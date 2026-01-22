@@ -22,6 +22,8 @@ public:
     void resetBuffers(double bufLenInSecs);
     /** reset the buffers to a specific number of samples  */
     void resetBuffersSamples(int bufLenInSamples);
+    /** set the capture window length for low-latency inference */
+    void setLatencySeconds(double latencySeconds);
     
     /** store the sent audio. sampleRate should be == BASIC_PITCH_SAMPLE_RATE
      * otherwise an assertion will cause a crash. Transcription is carried out automatically in a background thread
@@ -31,6 +33,7 @@ public:
     void setNoteSensitivity(float s)   { noteSensitivity   = s; }
     void setSplitSensitivity(float s)  { splitSensitivity  = s; }
     void setMinNoteDuration(float ms)  { minNoteDurationMs = ms; }
+    void setMinNoteVelocity(float v) { minNoteVelocity = v; }
     void setNoteHoldSensitivity(float s) { noteHoldSensitivity = s; }
     /** call this to ask if the transcriber has any MIDI to give you, since transcriptions happen in the background */
     bool hasMidi();
@@ -52,16 +55,23 @@ private:
 
     bool        noteHeld[128]      = { false };
     bool        noteSeen[128]      = { false };
+    double      noteLastSeenTime[128] = { 0.0 };
     
 
     TranscriberStatus status       = collectingAudio;
     int      bufferLenSamples      = 0;
     double   bufferLenSecs          = 0;
+    int      captureLenSamples     = 0;
+    double   captureLenSecs        = 0;
+    int      silenceLenSamples     = 0;
+    double   silenceLenSecs        = 0;
     int      samplesWritten        = 0;
+    double   processedAudioSecs    = 0.0;
 
     float    noteSensitivity       = 0.7f;
     float    splitSensitivity      = 0.5f;
     float    minNoteDurationMs     = 125.0f;
+    float    minNoteVelocity       = 0.0f;
     float   noteHoldSensitivity   = 0.95f;
 
     std::thread              workerThread;

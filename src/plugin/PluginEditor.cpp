@@ -7,55 +7,24 @@
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p, juce::AudioProcessorValueTreeState& vts)
     : AudioProcessorEditor (p),
     processorRef(p),
-      valueTreeState (vts)
+      valueTreeState (vts),
+      controlPanel(vts)
 {
-    // juce::ignoreUnused (processor);
+    addAndMakeVisible(header);
+    addAndMakeVisible(controlPanel);
+    addAndMakeVisible(pianoRoll);
+    addAndMakeVisible(footer);
 
-    noteSensitivityLabel.setText ("Sensitivity", juce::dontSendNotification);
-    noteSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);  
-    addAndMakeVisible (noteSensitivityLabel);
-    addAndMakeVisible (noteSensitivitySlider);
-    noteSensitivityAttachment.reset (new SliderAttachment (valueTreeState, "noteSensitivity", noteSensitivitySlider));
-
-    splitSensitivityLabel.setText ("Split Sensitivity", juce::dontSendNotification);
-    splitSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    addAndMakeVisible (splitSensitivityLabel);
-    addAndMakeVisible (splitSensitivitySlider);
-    splitSensitivityAttachment.reset (new SliderAttachment (valueTreeState, "splitSensitivity", splitSensitivitySlider));
-
-    minNoteDurationLabel.setText ("Min Note Duration (ms)", juce::dontSendNotification);
-    minNoteDurationSlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    addAndMakeVisible (minNoteDurationLabel);
-    addAndMakeVisible (minNoteDurationSlider);
-    minNoteDurationAttachment.reset (new SliderAttachment (valueTreeState, "minNoteDurationMs", minNoteDurationSlider));
-
-    noteHoldSensitivityLabel.setText ("Note Hold Sensitivity", juce::dontSendNotification);
-    noteHoldSensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);  
-    addAndMakeVisible (noteHoldSensitivityLabel);
-    addAndMakeVisible (noteHoldSensitivitySlider);
-    
-    noteHoldSensitivityAttachment.reset (new SliderAttachment (valueTreeState, "noteHoldSensitivity", noteHoldSensitivitySlider));
-
-    trackingToggle.setButtonText ("Enable Tracking");
-    addAndMakeVisible (trackingToggle);
-    trackingAttachment.reset (new ButtonAttachment (valueTreeState, "TrackingToggle", trackingToggle));
-    
-    // setSize (paramSliderWidth + paramLabelWidth, juce::jmax (100, paramControlHeight * 2));
-
-    addAndMakeVisible(noteIndicator);
-    noteIndicator.setFrameRateHz(30);
-    noteIndicator.setDecaySeconds(5.0f);
-
-    addAndMakeVisible(levelMeter);
-    levelMeter.setFrameRateHz(30);
-    levelMeter.setDecaySeconds(10.0f);
+    trackingAttachment.reset(new ButtonAttachment(valueTreeState, "TrackingToggle",
+                                                  header.getIndicatorButton()));
+    footer.setOnToggle([this](bool) { resized(); });
 
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (800, 500);
+    setSize (920, 520);
 
     // start polling the processor for 'last midi message'
-    startTimerHz(30); 
+    startTimerHz(30);
 
 }
 
@@ -67,11 +36,7 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
 void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
 {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
-    g.setColour (juce::Colours::white);
-    g.setFont (20.0f);
-    // g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    g.fillAll(juce::Colour(0xFF0F1418));
 }
 
 
@@ -79,67 +44,52 @@ void AudioPluginAudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
-    auto area = getLocalBounds().reduced (10);
-    // gainLabel.setBounds (area.removeFromTop (20));
-    // gainSlider.setBounds (area.removeFromTop (20));
-    int x, y, colWidth, rowHeight;
-    x=0;
-    y=0;
-    int numRows = 10;
-    colWidth = area.getWidth() / 2;
-    rowHeight = area.getHeight() / numRows;
+    auto area = getLocalBounds();
+    const int headerHeight = 38;
+    const int footerHeight = footer.getPreferredHeight();
 
+    header.setBounds(area.removeFromTop(headerHeight));
+    footer.setBounds(area.removeFromBottom(footerHeight));
 
-    trackingLabel.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    trackingToggle.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;    
-    noteSensitivityLabel.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    noteSensitivitySlider.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    splitSensitivityLabel.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    splitSensitivitySlider.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    minNoteDurationLabel.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    minNoteDurationSlider.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    noteHoldSensitivityLabel.setBounds (x, y, colWidth, rowHeight);
-    y+= rowHeight;
-    noteHoldSensitivitySlider.setBounds (x, y, colWidth, rowHeight);
-    y = 0;
-    x = x+colWidth;
-    levelMeter.setBounds(x, y, colWidth, rowHeight);
-    y+= rowHeight;    
-    noteIndicator.setBounds(x, y, colWidth, rowHeight*2);
-    
+    auto contentArea = area.reduced(12, 8);
+    const int leftWidth = juce::jmin(260, contentArea.getWidth() / 3);
+    controlPanel.setBounds(contentArea.removeFromLeft(leftWidth));
+    contentArea.removeFromLeft(12);
+    pianoRoll.setBounds(contentArea);
 }
 
 
 void AudioPluginAudioProcessorEditor::timerCallback()
 {
-    int noteIn; float velIn; int noteOut; float velOut; float rms;
+    float rms;
+    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
 
-    if (processorRef.pullMIDIForGUI(noteIn, velIn, lastSeenStamp))
+    AudioPluginAudioProcessor::NoteEvent event;
+    while (processorRef.popNextNoteEvent(event))
     {
-        // Synthesize a small message to feed the GUI indicator.
-        const bool isOn = velIn > 0.0f;
-        const int channel = 1; // arbitrary; GUI only uses note/velocity
-        juce::MidiMessage msg = isOn ? juce::MidiMessage::noteOn(channel, noteIn, velIn)
-                                   : juce::MidiMessage::noteOff(channel, noteIn);
-        
-        const int note = msg.getNoteNumber();
-        const float vel = msg.getFloatVelocity();
-
-        noteIndicator.setNote(note, vel);
-
+        if (event.isNoteOn)
+            pianoRoll.noteOn(event.note, event.velocity, now);
+        else
+            pianoRoll.noteOff(event.note, now);
     }
 
     if (processorRef.pullRMSForGUI(rms)){
-        levelMeter.setRMS(rms);
+        lastRms = rms;
+        header.setRMS(rms);
     }
 
-
+    const auto* trackingParam = valueTreeState.getRawParameterValue("TrackingToggle");
+    const bool trackingEnabled = trackingParam != nullptr && trackingParam->load() > 0.5f;
+    const double lastNoteTime = pianoRoll.getLastNoteEventTimeSeconds();
+    const double timeSinceNote = now - lastNoteTime;
+    const float rmsDb = juce::Decibels::gainToDecibels(lastRms);
+    HeaderComponent::StatusState state = HeaderComponent::StatusState::Silence;
+    if (trackingEnabled)
+    {
+        if (timeSinceNote < 0.5)
+            state = HeaderComponent::StatusState::Active;
+        else if (rmsDb > -50.0f)
+            state = HeaderComponent::StatusState::Low;
+    }
+    header.setStatus(state);
 }
