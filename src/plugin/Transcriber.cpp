@@ -4,6 +4,7 @@
 #include "Transcriber.h"
 #include <chrono>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 
@@ -32,8 +33,14 @@ void Transcriber::resetBuffers(double bufLenInSecs)
 
 void Transcriber::resetBuffersSamples(int _bufLenInSamples)
 {
-    bufferLenSamples = _bufLenInSamples;
+    bufferLenSamples = std::max(_bufLenInSamples, 1);
     bufferLenSecs = (bufferLenSamples / BASIC_PITCH_SAMPLE_RATE);
+    if (captureLenSamples <= 0 || captureLenSamples > bufferLenSamples) {
+        captureLenSamples = bufferLenSamples;
+    }
+    captureLenSecs = (captureLenSamples / BASIC_PITCH_SAMPLE_RATE);
+    silenceLenSamples = bufferLenSamples - captureLenSamples;
+    silenceLenSecs = (silenceLenSamples / BASIC_PITCH_SAMPLE_RATE);
     // std::cout << "Set buf len secs to " << bufferLenSecs << std::endl;
 
     delete[] bufferA; delete[] bufferB;
@@ -44,7 +51,41 @@ void Transcriber::resetBuffersSamples(int _bufLenInSamples)
     currentReadBuffer  = nullptr;
     samplesWritten     = 0;
 
+    std::fill(std::begin(noteHeld), std::end(noteHeld), false);
+    std::fill(std::begin(noteSeen), std::end(noteSeen), false);
+    std::fill(std::begin(noteLastSeenTime), std::end(noteLastSeenTime), 0.0);
+    if (bufferA) std::fill_n(bufferA, bufferLenSamples, 0.0f);
+    if (bufferB) std::fill_n(bufferB, bufferLenSamples, 0.0f);
+    processedAudioSecs = 0.0;
+
     {
+        std::lock_guard<std::mutex> sl(statusMutex);
+        status = collectingAudio;
+    }
+}
+
+void Transcriber::setLatencySeconds(double latencySeconds)
+{
+    const int newCaptureLenSamples =
+        std::max(1, static_cast<int>(std::round(latencySeconds * BASIC_PITCH_SAMPLE_RATE)));
+    captureLenSamples = std::min(newCaptureLenSamples, bufferLenSamples);
+    captureLenSecs = (captureLenSamples / BASIC_PITCH_SAMPLE_RATE);
+    silenceLenSamples = bufferLenSamples - captureLenSamples;
+    silenceLenSecs = (silenceLenSamples / BASIC_PITCH_SAMPLE_RATE);
+
+    samplesWritten = 0;
+    currentWriteBuffer = bufferA;
+    currentReadBuffer = nullptr;
+    if (bufferA) std::fill_n(bufferA, bufferLenSamples, 0.0f);
+    if (bufferB) std::fill_n(bufferB, bufferLenSamples, 0.0f);
+
+    std::fill(std::begin(noteHeld), std::end(noteHeld), false);
+    std::fill(std::begin(noteSeen), std::end(noteSeen), false);
+    std::fill(std::begin(noteLastSeenTime), std::end(noteLastSeenTime), 0.0);
+    processedAudioSecs = 0.0;
+
+    {
+        
         std::lock_guard<std::mutex> sl(statusMutex);
         status = collectingAudio;
     }
@@ -73,10 +114,14 @@ void Transcriber::queueAudioForTranscription(const float* inAudio, int numSample
     int remaining = numSamples, offset = 0;
     while (remaining > 0)
     {
-        int spaceLeft = bufferLenSamples - samplesWritten;
+        if (samplesWritten == 0) {
+            std::fill_n(currentWriteBuffer, bufferLenSamples, 0.0f);
+        }
+
+        int spaceLeft = captureLenSamples - samplesWritten;
         int chunk     = std::min(spaceLeft, remaining);
 
-        std::memcpy(currentWriteBuffer + samplesWritten,
+        std::memcpy(currentWriteBuffer + silenceLenSamples + samplesWritten,
                     inAudio + offset,
                     chunk * sizeof(float));
 
@@ -85,7 +130,7 @@ void Transcriber::queueAudioForTranscription(const float* inAudio, int numSample
         remaining       -= chunk;
         // std::cout << "Trnascriber queued " << samplesWritten << " of buff " << bufferLenSamples << std::endl;
 
-        if (samplesWritten >= bufferLenSamples) // time to send the buffer to the model then switch to the other buffer 
+        if (samplesWritten >= captureLenSamples) // time to send the buffer to the model then switch to the other buffer 
         {
             {
                 std::lock_guard<std::mutex> sl(statusMutex);
@@ -156,69 +201,88 @@ void Transcriber::runModel(float* readBuffer)
     // gather the events
     const auto& events = mBasicPitch.getNoteEvents();
 
-    // reset the noteSeen array
+    const double silenceSecs = silenceLenSecs;
+    const double captureSecs = captureLenSecs;
+    const double bufferStartTime = processedAudioSecs;
+    const double bufferEndTime = bufferStartTime + captureSecs;
+    const double minHoldSecs = std::max(0.0, minNoteDurationMs / 1000.0);
+
+    // reset the noteSeen array and per-note buffers
+    double noteStartInBuffer[128];
+    double noteEndInBuffer[128];
+    float noteAmp[128];
     for (int i=0;i<128;++i){
         noteSeen[i] = false;
+        noteStartInBuffer[i] = captureSecs;
+        noteEndInBuffer[i] = 0.0;
+        noteAmp[i] = 0.0f;
     }
     juce::MidiBuffer localMidi;
     for (auto& ev : events)
     {
-        std::cout << "Raw note: [" <<ev.pitch << " | " << ev.amplitude << " [" << ev.startTime << " -> " << ev.endTime << "]" << std::endl;
-
         int note    = static_cast<int>(ev.pitch);
         float amp   = ev.amplitude; 
-        bool wasHeld = noteHeld[ev.pitch];
-        bool isHeld  = (ev.endTime > noteHoldSensitivity * bufferLenSecs);
-        if (isHeld){
-            std::cout << "Transcriber:: Labelling this note as held as its end time " << ev.endTime << " is over " << noteHoldSensitivity<< "  of buf length " << (noteHoldSensitivity * bufferLenSecs) << std::endl;  
-        }
-        // these are based on the model's sample rate of 22050
-        int startSample = static_cast<int>(ev.startTime * bufferLenSamples);
-        int endSample   = static_cast<int>(ev.endTime   * bufferLenSamples);
-        // now scale them to the current system sampling rate 
 
-        uint8_t velocity = static_cast<uint8_t>(std::clamp(amp, 0.0f, 1.0f) * 127.0f);
-
-        // NOTE ON - new note detected
-        if (!wasHeld)
-        {
-            std::cout << "New note on "<< note << " start " << ev.startTime << "f: "<< startSample << "ef: " << endSample << std::endl;
-            localMidi.addEvent(
-                juce::MidiMessage::noteOn(1, note, velocity),
-                startSample);
-            // std::cout << "After note on add, local midi has "  << localMidi.getNumEvents() << std::endl;
-            // now check if the end 
-            // 
-            noteSeen[note] = true;
+        if (ev.startTime < silenceSecs) {
+            continue;
         }
 
-        // NOTE OFF - held note was released in this buffer
-        // or note started and ended in this buffer 
-        if ((wasHeld && !isHeld) || (!wasHeld && !isHeld))
-        {
-            std::cout << "Note off: " << note << " at " << ev.endTime <<  " wasHeld "<< wasHeld << " isHeld " << isHeld << std::endl;
-
-            // we’re now releasing
-            localMidi.addEvent(
-                juce::MidiMessage::noteOff(1, note),
-                endSample);
-            // std::cout << "After note off add, local midi has "  << localMidi.getNumEvents() << std::endl;
-            // now stop holding it, ready for next note on 
-            noteHeld[ev.pitch] = false; 
-            noteSeen[note] = true;
+        double adjustedStart = ev.startTime - silenceSecs;
+        double adjustedEnd = ev.endTime - silenceSecs;
+        if (adjustedEnd <= 0.0) {
+            continue;
         }
+        if (adjustedStart < 0.0) adjustedStart = 0.0;
+        if (adjustedEnd > captureSecs) adjustedEnd = captureSecs;
 
-        // if it’s still held at buffer-end, keep the hold flag
-        noteHeld[note] = isHeld;
+        noteSeen[note] = true;
+        noteStartInBuffer[note] = std::min(noteStartInBuffer[note], adjustedStart);
+        noteEndInBuffer[note] = std::max(noteEndInBuffer[note], adjustedEnd);
+        noteAmp[note] = std::max(noteAmp[note], amp);
     }
+
     for (int i=0;i<128;++i){
-        if (noteHeld[i] && !noteSeen[i]){
-            // held note not seen - end it 
-            localMidi.addEvent(
-                juce::MidiMessage::noteOff(1, i),
-                0
-            );
-            noteHeld[i] = false; 
+        if (noteSeen[i]) {
+            const double adjustedStart = noteStartInBuffer[i];
+            const double adjustedEnd = noteEndInBuffer[i];
+            const float clampedAmp = std::max(minNoteVelocity, std::clamp(noteAmp[i], 0.0f, 1.0f));
+            const uint8_t velocity =
+                static_cast<uint8_t>(clampedAmp * 127.0f);
+            const int startSample =
+                static_cast<int>(std::round(adjustedStart * BASIC_PITCH_SAMPLE_RATE));
+            const int endSample =
+                static_cast<int>(std::round(adjustedEnd * BASIC_PITCH_SAMPLE_RATE));
+
+            if (!noteHeld[i]) {
+                std::cout << "Note on " << i << " start " << adjustedStart
+                          << " end " << adjustedEnd << " vel " << static_cast<int>(velocity)
+                          << " startSample " << startSample << " endSample " << endSample << std::endl;
+                localMidi.addEvent(
+                    juce::MidiMessage::noteOn(1, i, velocity),
+                    std::max(0, startSample));
+                noteHeld[i] = true;
+            }
+
+            noteLastSeenTime[i] = bufferStartTime + adjustedEnd;
+            continue;
+        }
+
+        if (noteHeld[i]) {
+            const double timeSinceSeen = bufferEndTime - noteLastSeenTime[i];
+            if (timeSinceSeen >= minHoldSecs) {
+                const double releaseTime = noteLastSeenTime[i] + minHoldSecs;
+                if (releaseTime <= bufferEndTime) {
+                    int releaseSample = static_cast<int>(
+                        std::round((releaseTime - bufferStartTime) * BASIC_PITCH_SAMPLE_RATE));
+                    releaseSample = std::clamp(releaseSample, 0, captureLenSamples);
+                    std::cout << "Note off " << i << " end " << (releaseTime - bufferStartTime)
+                              << " heldFor " << timeSinceSeen << std::endl;
+                    localMidi.addEvent(
+                        juce::MidiMessage::noteOff(1, i),
+                        releaseSample);
+                    noteHeld[i] = false;
+                }
+            }
         }
     }
 
@@ -240,6 +304,8 @@ void Transcriber::runModel(float* readBuffer)
         status = collectingAudio;
 
     }
+
+    processedAudioSecs += captureSecs;
 }
 
 bool Transcriber::hasMidi()

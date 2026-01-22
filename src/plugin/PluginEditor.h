@@ -1,8 +1,10 @@
 #pragma once
 
 #include "PluginProcessor.h"
-#include "NoteIndicatorComponent.h"
-#include "LevelMeterComp.h"
+#include "HeaderComponent.h"
+#include "ControlPanelComponent.h"
+#include "PianoRollComponent.h"
+#include "FooterComponent.h"
 
 // shorthands for the gui components for controlling params
 typedef juce::AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
@@ -32,31 +34,14 @@ private:
 
   juce::AudioProcessorValueTreeState& valueTreeState;
 
-     juce::Label trackingLabel;
-    juce::ToggleButton trackingToggle;
+    HeaderComponent header;
+    ControlPanelComponent controlPanel;
+    PianoRollComponent pianoRoll;
+    FooterComponent footer;
     std::unique_ptr<ButtonAttachment> trackingAttachment;
+    juce::TooltipWindow tooltipWindow { this, 700 };
 
-    juce::Label noteSensitivityLabel;
-    juce::Slider noteSensitivitySlider;
-    std::unique_ptr<SliderAttachment> noteSensitivityAttachment;
-
-    juce::Label splitSensitivityLabel;
-    juce::Slider splitSensitivitySlider;
-    std::unique_ptr<SliderAttachment> splitSensitivityAttachment;
-    
-    juce::Label minNoteDurationLabel;
-    juce::Slider minNoteDurationSlider;
-    std::unique_ptr<SliderAttachment> minNoteDurationAttachment;
-
-    juce::Label noteHoldSensitivityLabel;
-    juce::Slider noteHoldSensitivitySlider;
-    std::unique_ptr<SliderAttachment> noteHoldSensitivityAttachment;
-
-
-    NoteIndicatorComponent noteIndicator;
-    LevelMeterComp levelMeter;
-
-    uint32_t lastSeenStamp { 0 };
+    float lastRms = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

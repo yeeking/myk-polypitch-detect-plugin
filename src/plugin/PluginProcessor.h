@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <array>
 
 #include "Transcriber.h"
 #include "AudioUtils.h"
@@ -51,6 +52,13 @@ public:
     void pushMIDIForGUI(const juce::MidiMessage& msg);
     /** call this from the UI message thread if you want to know what the last received midi message was */
     bool pullMIDIForGUI(int& note, float& vel, uint32_t& lastSeenStamp);
+    struct NoteEvent
+    {
+        int note = 0;
+        float velocity = 0.0f;
+        bool isNoteOn = false;
+    };
+    bool popNextNoteEvent(NoteEvent& event);
 
     /** call this from anywhere to tell the processor about some midi that was received so it can save it for the GUI to access later */
     void pushRMSForGUI(float rms);
@@ -58,6 +66,7 @@ public:
     bool pullRMSForGUI(float& rms);
 
 private:
+    void pushNoteEventForUI(const juce::MidiMessage& msg);
     std::unique_ptr<Transcriber> transcriber;
     /** collects midi from transcriber and stores it internally with fixed times
      * if no MIDI collected, returns false, if MIDI collected, return true 
@@ -78,7 +87,9 @@ private:
     std::atomic<float>* noteSensitivityParameter = nullptr;
     std::atomic<float>* splitSensitivityParameter = nullptr;
     std::atomic<float>* minNoteDurationParameter = nullptr;
-    std::atomic<float>* noteHoldSensitivityParameter = nullptr;
+    std::atomic<float>* minNoteVelocityParameter = nullptr;
+    std::atomic<float>* latencySecondsParameter = nullptr;
+    float lastLatencySeconds = -1.0f;
 
     // std::atomic<float>* gainParameter = nullptr;
     // used to expose last note detected to the GUI
@@ -88,6 +99,9 @@ private:
     std::atomic<uint32_t> lastNoteStamp {0};           // increments on every new note event
     // this one is used for the input level meter
     std::atomic<float> lastRMS  {0.0f};            
+    static constexpr int kNoteEventQueueSize = 512;
+    juce::AbstractFifo noteEventFifo { kNoteEventQueueSize };
+    std::array<NoteEvent, kNoteEventQueueSize> noteEventBuffer {};
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

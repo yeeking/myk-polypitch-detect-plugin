@@ -76,7 +76,7 @@ void NoteIndicatorComponent::paint(juce::Graphics& g)
     const float w = bounds.getWidth();
     float fontSize = juce::jmin(h * 0.70f, w * 0.45f);
 
-    g.setFont(juce::Font(fontSize, juce::Font::bold));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(fontSize).withStyle("Bold")));
 
     // Contrast-aware text
     const float b = brightness.load(std::memory_order_relaxed);
