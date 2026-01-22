@@ -48,14 +48,14 @@ fi
 
 # If either the library or the ort model is missing or if an archive was found
 # then fetch ort model and library again.
-if test ! -f "src/assets/ModelData/features_model.ort" -o ! -f "ThirdParty/onnxruntime/lib/$file" -o -f "$archive"; then
+if test ! -f "src/assets/ModelData/features_model.ort" -o ! -f "libs/onnxruntime/lib/$file" -o -f "$archive"; then
 	if ! test -f "$archive"; then
 		curl -fsSLO "https://github.com/tiborvass/libonnxruntime-neuralnote/releases/download/${version}/${archive}"
 	fi
-	rm -rf ThirdParty/$dir ThirdParty/onnxruntime
-	tar -C ThirdParty/ -xvf "$archive"
-	mv "ThirdParty/$dir" ThirdParty/onnxruntime
-	mv ThirdParty/onnxruntime/model.with_runtime_opt.ort src/assets/ModelData/features_model.ort
+	rm -rf libs/$dir libs/onnxruntime
+	tar -C libs/ -xvf "$archive"
+	mv "libs/$dir" libs/onnxruntime
+	mv libs/onnxruntime/model.with_runtime_opt.ort src/assets/ModelData/features_model.ort
 	rm "$archive"
 fi
 

@@ -29,8 +29,8 @@ endif ()
 #static linking in Windows
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-add_subdirectory(ThirdParty/JUCE)
-add_subdirectory(ThirdParty/RTNeural)
+add_subdirectory(libs/JUCE)
+add_subdirectory(libs/RTNeural)
 
 set(BaseTargetName MykPolyPitch)
 
@@ -105,7 +105,7 @@ file(GLOB RESOURCES_FILES ${CMAKE_CURRENT_LIST_DIR}/src/assets/ModelData/*.json
 juce_add_binary_data(bin_data SOURCES ${RESOURCES_FILES})
 
 add_library(BasicPitchCNN STATIC ${CMAKE_CURRENT_LIST_DIR}/src/lib/Model/BasicPitchCNN.cpp)
-target_include_directories(BasicPitchCNN PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/RTNeural)
+target_include_directories(BasicPitchCNN PRIVATE ${CMAKE_CURRENT_LIST_DIR}/libs/RTNeural)
 if ((CMAKE_BUILD_TYPE STREQUAL "Debug") AND RTNeural_Release)
     if (MSVC)
         target_compile_options(BasicPitchCNN PUBLIC /O2) # or maybe /Ox
@@ -116,7 +116,7 @@ endif ()
 target_link_libraries(BasicPitchCNN PUBLIC RTNeural bin_data)
 
 target_include_directories(${BaseTargetName} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ONNXRuntime/${ONNXRUNTIME_DIRNAME}/include)
-target_include_directories(${BaseTargetName} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/minimp3)
+target_include_directories(${BaseTargetName} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/libs/minimp3)
 
 target_compile_definitions(${BaseTargetName}
         PUBLIC
@@ -127,14 +127,14 @@ target_compile_definitions(${BaseTargetName}
 add_library(onnxruntime STATIC IMPORTED)
 
 if (APPLE)
-    set_property(TARGET onnxruntime PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/onnxruntime/lib/libonnxruntime.a)
+    set_property(TARGET onnxruntime PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_LIST_DIR}/libs/onnxruntime/lib/libonnxruntime.a)
 
 elseif (WIN32)
     set_property(TARGET onnxruntime APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 
     set_target_properties(onnxruntime PROPERTIES
             IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-            IMPORTED_LOCATION_RELEASE "${CMAKE_CURRENT_LIST_DIR}/ThirdParty/onnxruntime/lib/onnxruntime.lib"
+            IMPORTED_LOCATION_RELEASE "${CMAKE_CURRENT_LIST_DIR}/libs/onnxruntime/lib/onnxruntime.lib"
     )
     set_target_properties(onnxruntime PROPERTIES
             MAP_IMPORTED_CONFIG_DEBUG Release
@@ -142,11 +142,11 @@ elseif (WIN32)
             MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
     )
 elseif (UNIX)
-    set_property(TARGET onnxruntime PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/onnxruntime/lib/libonnxruntime.a)
+    set_property(TARGET onnxruntime PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_LIST_DIR}/libs/onnxruntime/lib/libonnxruntime.a)
 endif ()
 
 
-target_include_directories("${BaseTargetName}" PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/onnxruntime/include)
+target_include_directories("${BaseTargetName}" PRIVATE ${CMAKE_CURRENT_LIST_DIR}/libs/onnxruntime/include)
 
 
 target_link_libraries(${BaseTargetName}
@@ -176,7 +176,7 @@ target_compile_definitions(${BaseTargetName}
 
 if (WIN32)
     target_compile_definitions(${BaseTargetName} PUBLIC JUCE_ASIO=1)
-    target_include_directories(${BaseTargetName} PRIVATE ThirdParty/ASIO/common)
+    target_include_directories(${BaseTargetName} PRIVATE libs/ASIO/common)
 endif ()
 
 
@@ -210,9 +210,9 @@ target_compile_definitions(polypitch-tests
 )
 
 
-target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/onnxruntime/include)
+target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/libs/onnxruntime/include)
 target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ONNXRuntime/${ONNXRUNTIME_DIRNAME}/include)
-target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/minimp3)
+target_include_directories(polypitch-tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/libs/minimp3)
 target_include_directories(polypitch-tests
     PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}  # This is where JuceHeader.h is generated
