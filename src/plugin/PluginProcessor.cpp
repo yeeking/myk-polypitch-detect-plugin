@@ -196,6 +196,10 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const int numInputChannels = buffer.getNumChannels();
     const int numInputSamples  = buffer.getNumSamples();
 
+    if (sendMidiPanicNext.exchange(false)) {
+        sendMidiPanic(midiMessages, 0);
+    }
+
     pushRMSForGUI(buffer.getRMSLevel(0,0,buffer.getNumSamples()));
     
     float noteSensitivity = *parameters.getRawParameterValue("noteSensitivity");
@@ -405,6 +409,32 @@ bool AudioPluginAudioProcessor::pullMIDIForGUI(int& note, float& vel, uint32_t& 
 
     vel  = lastVelocity.load(std::memory_order_relaxed);
     return true;
+}
+
+void AudioPluginAudioProcessor::requestMidiPanic()
+{
+    sendMidiPanicNext.store(true, std::memory_order_release);
+}
+
+void AudioPluginAudioProcessor::sendMidiPanic(juce::MidiBuffer& out, int samplePos)
+{
+    for (int ch = 1; ch <= 16; ++ch)
+    {
+        out.addEvent(juce::MidiMessage::controllerEvent(ch, 64, 0), samplePos);
+        out.addEvent(juce::MidiMessage::controllerEvent(ch, 123, 0), samplePos);
+        out.addEvent(juce::MidiMessage::controllerEvent(ch, 120, 0), samplePos);
+        out.addEvent(juce::MidiMessage::controllerEvent(ch, 121, 0), samplePos);
+        out.addEvent(juce::MidiMessage::pitchWheel(ch, 0x2000), samplePos);
+        out.addEvent(juce::MidiMessage::controllerEvent(ch, 1, 0), samplePos);
+        out.addEvent(juce::MidiMessage::controllerEvent(ch, 11, 127), samplePos);
+    }
+
+    for (int ch = 1; ch <= 16; ++ch)
+        for (int note = 0; note < 128; ++note)
+            out.addEvent(juce::MidiMessage::noteOff(ch, note), samplePos);
+
+    for (int ch = 1; ch <= 16; ++ch)
+        out.addEvent(juce::MidiMessage::controllerEvent(ch, 64, 0), samplePos + 1);
 }
 
 // Publish note/velocity to the UI mailbox (RT-safe, no locks/allocs).

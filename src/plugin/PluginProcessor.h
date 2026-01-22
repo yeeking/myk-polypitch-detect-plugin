@@ -52,6 +52,7 @@ public:
     void pushMIDIForGUI(const juce::MidiMessage& msg);
     /** call this from the UI message thread if you want to know what the last received midi message was */
     bool pullMIDIForGUI(int& note, float& vel, uint32_t& lastSeenStamp);
+    void requestMidiPanic();
     struct NoteEvent
     {
         int note = 0;
@@ -66,6 +67,7 @@ public:
     bool pullRMSForGUI(float& rms);
 
 private:
+    void sendMidiPanic(juce::MidiBuffer& out, int samplePos);
     void pushNoteEventForUI(const juce::MidiMessage& msg);
     std::unique_ptr<Transcriber> transcriber;
     /** collects midi from transcriber and stores it internally with fixed times
@@ -99,6 +101,7 @@ private:
     std::atomic<uint32_t> lastNoteStamp {0};           // increments on every new note event
     // this one is used for the input level meter
     std::atomic<float> lastRMS  {0.0f};            
+    std::atomic<bool> sendMidiPanicNext { false };
     static constexpr int kNoteEventQueueSize = 512;
     juce::AbstractFifo noteEventFifo { kNoteEventQueueSize };
     std::array<NoteEvent, kNoteEventQueueSize> noteEventBuffer {};

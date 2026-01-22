@@ -11,6 +11,12 @@ HeaderComponent::HeaderComponent()
     indicatorButton.setTooltip("Toggle tracking");
     addAndMakeVisible(indicatorButton);
 
+    panicButton.setButtonText("PANIC");
+    panicButton.setTooltip("Send all-notes-off and reset controllers");
+    panicButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF2A1616));
+    panicButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFE1A3A3));
+    addAndMakeVisible(panicButton);
+
     levelMeter.setFrameRateHz(30);
     levelMeter.setDecaySeconds(4.0f);
     levelMeter.setRedrawThreshold(0.05f);
@@ -32,12 +38,19 @@ HeaderComponent::TrackingIndicatorButton& HeaderComponent::getIndicatorButton()
     return indicatorButton;
 }
 
+juce::TextButton& HeaderComponent::getPanicButton()
+{
+    return panicButton;
+}
+
 void HeaderComponent::resized()
 {
     auto area = getLocalBounds().reduced(12, 6);
     auto left = area.removeFromLeft(area.getWidth() / 2);
     titleLabel.setBounds(left.removeFromLeft(200));
     indicatorButton.setBounds(left.removeFromLeft(36));
+    panicButton.setBounds(area.removeFromRight(70).reduced(0, 2));
+    area.removeFromRight(10);
     levelMeter.setBounds(area.removeFromRight(200).reduced(0, 6));
 }
 

@@ -56,6 +56,7 @@ private:
     bool        noteHeld[128]      = { false };
     bool        noteSeen[128]      = { false };
     double      noteLastSeenTime[128] = { 0.0 };
+    double      noteStartTime[128] = { 0.0 };
     
 
     TranscriberStatus status       = collectingAudio;
@@ -72,6 +73,7 @@ private:
     float    splitSensitivity      = 0.5f;
     float    minNoteDurationMs     = 125.0f;
     float    minNoteVelocity       = 0.0f;
+    double   maxNoteDurationSecs   = 3.0;
     float   noteHoldSensitivity   = 0.95f;
 
     std::thread              workerThread;

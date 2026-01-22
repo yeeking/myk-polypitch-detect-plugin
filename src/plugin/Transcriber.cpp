@@ -54,6 +54,7 @@ void Transcriber::resetBuffersSamples(int _bufLenInSamples)
     std::fill(std::begin(noteHeld), std::end(noteHeld), false);
     std::fill(std::begin(noteSeen), std::end(noteSeen), false);
     std::fill(std::begin(noteLastSeenTime), std::end(noteLastSeenTime), 0.0);
+    std::fill(std::begin(noteStartTime), std::end(noteStartTime), 0.0);
     if (bufferA) std::fill_n(bufferA, bufferLenSamples, 0.0f);
     if (bufferB) std::fill_n(bufferB, bufferLenSamples, 0.0f);
     processedAudioSecs = 0.0;
@@ -82,6 +83,7 @@ void Transcriber::setLatencySeconds(double latencySeconds)
     std::fill(std::begin(noteHeld), std::end(noteHeld), false);
     std::fill(std::begin(noteSeen), std::end(noteSeen), false);
     std::fill(std::begin(noteLastSeenTime), std::end(noteLastSeenTime), 0.0);
+    std::fill(std::begin(noteStartTime), std::end(noteStartTime), 0.0);
     processedAudioSecs = 0.0;
 
     {
@@ -261,14 +263,42 @@ void Transcriber::runModel(float* readBuffer)
                     juce::MidiMessage::noteOn(1, i, velocity),
                     std::max(0, startSample));
                 noteHeld[i] = true;
+                noteStartTime[i] = bufferStartTime + adjustedStart;
             }
 
             noteLastSeenTime[i] = bufferStartTime + adjustedEnd;
+            const double heldDuration = bufferEndTime - noteStartTime[i];
+            if (heldDuration >= maxNoteDurationSecs) {
+                const double releaseTime = noteStartTime[i] + maxNoteDurationSecs;
+                int releaseSample = static_cast<int>(
+                    std::round((releaseTime - bufferStartTime) * BASIC_PITCH_SAMPLE_RATE));
+                releaseSample = std::clamp(releaseSample, 0, captureLenSamples);
+                std::cout << "Note off " << i << " end " << (releaseTime - bufferStartTime)
+                          << " forcedMax " << maxNoteDurationSecs << std::endl;
+                localMidi.addEvent(
+                    juce::MidiMessage::noteOff(1, i),
+                    releaseSample);
+                noteHeld[i] = false;
+            }
             continue;
         }
 
         if (noteHeld[i]) {
             const double timeSinceSeen = bufferEndTime - noteLastSeenTime[i];
+            const double heldDuration = bufferEndTime - noteStartTime[i];
+            if (heldDuration >= maxNoteDurationSecs) {
+                const double releaseTime = noteStartTime[i] + maxNoteDurationSecs;
+                int releaseSample = static_cast<int>(
+                    std::round((releaseTime - bufferStartTime) * BASIC_PITCH_SAMPLE_RATE));
+                releaseSample = std::clamp(releaseSample, 0, captureLenSamples);
+                std::cout << "Note off " << i << " end " << (releaseTime - bufferStartTime)
+                          << " forcedMax " << maxNoteDurationSecs << std::endl;
+                localMidi.addEvent(
+                    juce::MidiMessage::noteOff(1, i),
+                    releaseSample);
+                noteHeld[i] = false;
+                continue;
+            }
             if (timeSinceSeen >= minHoldSecs) {
                 const double releaseTime = noteLastSeenTime[i] + minHoldSecs;
                 if (releaseTime <= bufferEndTime) {

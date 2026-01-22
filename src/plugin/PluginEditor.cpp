@@ -17,6 +17,10 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
 
     trackingAttachment.reset(new ButtonAttachment(valueTreeState, "TrackingToggle",
                                                   header.getIndicatorButton()));
+    header.getPanicButton().onClick = [this]
+    {
+        processorRef.requestMidiPanic();
+    };
     footer.setOnToggle([this](bool) { resized(); });
 
     // Make sure that before the constructor has finished, you've set the
